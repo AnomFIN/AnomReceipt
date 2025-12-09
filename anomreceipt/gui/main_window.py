@@ -399,7 +399,9 @@ class MainWindow(QMainWindow):
                 
         # Items
         receipt_width = self.settings.get('receipt_width', 48)
-        preview.append('-' * receipt_width)
+        separator_line = '-' * receipt_width
+        
+        preview.append(separator_line)
         if receipt_data.get('items'):
             for item in receipt_data['items']:
                 name = item.get('name', '')
@@ -418,7 +420,7 @@ class MainWindow(QMainWindow):
                 
                 preview.append(line)
                 
-        preview.append('-' * receipt_width)
+        preview.append(separator_line)
         
         # Footer
         if receipt_data.get('footer'):
