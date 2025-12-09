@@ -51,6 +51,20 @@ pip install -r requirements.txt
 python3 main.py
 ```
 
+### 4. Try the demo (optional)
+
+To see the application features without the GUI:
+
+```bash
+python3 demo.py
+```
+
+This will demonstrate:
+- All available company profiles
+- Receipt rendering with Finnish and English templates
+- VAT calculations and breakdown
+- Printer functionality (dummy mode)
+
 ## Configuration
 
 ### Printer Setup
