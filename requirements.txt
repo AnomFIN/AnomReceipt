@@ -1,0 +1,13 @@
+# Qt GUI Framework
+PyQt5>=5.15.0
+PyQt5-sip>=12.11.0
+
+# ESC/POS printing support
+python-escpos>=3.0
+
+# Data handling
+PyYAML>=6.0
+
+# Testing
+pytest>=7.4.0
+pytest-qt>=4.2.0
