@@ -1,0 +1,24 @@
+name: "Ravintola Anom"
+logo_file: "restaurant_logo.txt"
+
+company_info:
+  name: "Ravintola Anom"
+  address: "Kauppakatu 45"
+  city: "33100 Tampere"
+  vat_id: "9876543-2"
+  phone: "+358 50 987 6543"
+  email: "info@ravintolaanom.fi"
+
+payment_methods:
+  cash:
+    EN: "Cash"
+    FI: "Käteinen"
+  card:
+    EN: "Card"
+    FI: "Kortti"
+  mobilepay:
+    EN: "MobilePay"
+    FI: "MobilePay"
+  bank:
+    EN: "Bank Transfer"
+    FI: "Tilisiirto"
