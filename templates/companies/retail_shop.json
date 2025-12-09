@@ -1,0 +1,30 @@
+{
+  "name": "Tech Retail Shop",
+  "logo_file": "tech_logo.txt",
+  "company_info": {
+    "name": "Tech Retail Shop",
+    "address": "Technology Street 789",
+    "city": "02100 Espoo",
+    "vat_id": "5555555-5",
+    "phone": "+358 45 555 5555",
+    "email": "sales@techshop.fi"
+  },
+  "payment_methods": {
+    "cash": {
+      "EN": "Cash",
+      "FI": "Käteinen"
+    },
+    "card": {
+      "EN": "Card",
+      "FI": "Kortti"
+    },
+    "mobilepay": {
+      "EN": "MobilePay",
+      "FI": "MobilePay"
+    },
+    "bank": {
+      "EN": "Bank Transfer",
+      "FI": "Tilisiirto"
+    }
+  }
+}

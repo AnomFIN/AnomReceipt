@@ -1,0 +1,24 @@
+name: "Rolex"
+logo_file: "rolex.txt"
+
+company_info:
+  name: "ROLEX SA"
+  address: "Rue François-Dussaud 3-5-7"
+  city: "1211 Geneva, Switzerland"
+  vat_id: "CH-ROL-1905"
+  phone: "+41 22 302 22 00"
+  email: "boutique@rolex.com"
+
+payment_methods:
+  cash:
+    EN: "Cash"
+    FI: "Käteinen"
+  card:
+    EN: "Credit Card"
+    FI: "Luottokortti"
+  mobilepay:
+    EN: "Mobile Payment"
+    FI: "Mobiilimaksu"
+  bank:
+    EN: "Wire Transfer"
+    FI: "Tilisiirto"
