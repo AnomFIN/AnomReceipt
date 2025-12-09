@@ -16,11 +16,15 @@ logger = logging.getLogger(__name__)
 class ReceiptTemplate:
     """Represents a receipt template"""
     
-    def __init__(self, name, company_info, payment_methods, logo=None):
+    # Default VAT rate (24% for Finland, configurable per template)
+    DEFAULT_VAT_RATE = 0.24
+    
+    def __init__(self, name, company_info, payment_methods, logo=None, vat_rate=None):
         self.name = name
         self.company_info = company_info
         self.payment_methods = payment_methods
         self.logo = logo or ""
+        self.vat_rate = vat_rate if vat_rate is not None else self.DEFAULT_VAT_RATE
         
     def generate_receipt(self, items, payment_method, language='EN', customer_info=None):
         """
@@ -65,14 +69,15 @@ class ReceiptTemplate:
         
         # Calculate totals
         total = sum(float(item.get('price', '0').replace('€', '').strip()) for item in items)
-        subtotal = total / 1.24  # Assuming 24% VAT
+        subtotal = total / (1 + self.vat_rate)
         vat = total - subtotal
         
         # Footer with totals
         receipt['footer'].append('')
         
+        vat_percent = int(self.vat_rate * 100)
         subtotal_label = 'Veroton yhteensä:' if language == 'FI' else 'Subtotal:'
-        vat_label = 'ALV 24%:' if language == 'FI' else 'VAT 24%:'
+        vat_label = f'ALV {vat_percent}%:' if language == 'FI' else f'VAT {vat_percent}%:'
         total_label = 'YHTEENSÄ:' if language == 'FI' else 'TOTAL:'
         payment_label = 'Maksutapa:' if language == 'FI' else 'Payment:'
         
@@ -140,7 +145,8 @@ class TemplateManager:
                 name=data.get('name', file_path.stem),
                 company_info=data.get('company_info', {}),
                 payment_methods=data.get('payment_methods', {}),
-                logo=logo
+                logo=logo,
+                vat_rate=data.get('vat_rate')  # Optional VAT rate override
             )
         except Exception as e:
             logger.error(f"Error loading template file {file_path}: {e}")

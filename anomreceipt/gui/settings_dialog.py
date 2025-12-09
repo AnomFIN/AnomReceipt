@@ -10,6 +10,23 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Receipt printer constants
+MIN_RECEIPT_WIDTH = 32
+MAX_RECEIPT_WIDTH = 80
+DEFAULT_RECEIPT_WIDTH = 48
+
+MIN_RECEIPT_LENGTH = 50
+MAX_RECEIPT_LENGTH = 200
+DEFAULT_RECEIPT_LENGTH = 80
+
+MIN_LOGO_WIDTH = 20
+MAX_LOGO_WIDTH = 80
+DEFAULT_LOGO_WIDTH = 48
+
+MIN_LOGO_HEIGHT = 5
+MAX_LOGO_HEIGHT = 30
+DEFAULT_LOGO_HEIGHT = 20
+
 
 class SettingsDialog(QDialog):
     """Dialog for application settings"""
@@ -18,10 +35,10 @@ class SettingsDialog(QDialog):
         super().__init__(parent)
         self.translator = translator
         self.settings = current_settings or {
-            'receipt_width': 48,
-            'receipt_length': 80,
-            'logo_max_width': 48,
-            'logo_max_height': 20,
+            'receipt_width': DEFAULT_RECEIPT_WIDTH,
+            'receipt_length': DEFAULT_RECEIPT_LENGTH,
+            'logo_max_width': DEFAULT_LOGO_WIDTH,
+            'logo_max_height': DEFAULT_LOGO_HEIGHT,
             'feed_lines': 3,
             'cut_paper': True,
             'bold_header': True,
@@ -86,7 +103,7 @@ class SettingsDialog(QDialog):
         dimensions_layout = QFormLayout()
         
         self.width_spin = QSpinBox()
-        self.width_spin.setRange(32, 80)
+        self.width_spin.setRange(MIN_RECEIPT_WIDTH, MAX_RECEIPT_WIDTH)
         self.width_spin.setSuffix(' ' + self.tr('characters'))
         dimensions_layout.addRow(self.tr('receipt_width') + ':', self.width_spin)
         
@@ -96,7 +113,7 @@ class SettingsDialog(QDialog):
         dimensions_layout.addRow('', width_info)
         
         self.length_spin = QSpinBox()
-        self.length_spin.setRange(50, 200)
+        self.length_spin.setRange(MIN_RECEIPT_LENGTH, MAX_RECEIPT_LENGTH)
         self.length_spin.setSuffix(' ' + self.tr('lines'))
         dimensions_layout.addRow(self.tr('receipt_length') + ':', self.length_spin)
         
@@ -123,7 +140,7 @@ class SettingsDialog(QDialog):
         logo_layout = QFormLayout()
         
         self.logo_width_spin = QSpinBox()
-        self.logo_width_spin.setRange(20, 80)
+        self.logo_width_spin.setRange(MIN_LOGO_WIDTH, MAX_LOGO_WIDTH)
         self.logo_width_spin.setSuffix(' ' + self.tr('characters'))
         logo_layout.addRow(self.tr('logo_max_width') + ':', self.logo_width_spin)
         
@@ -133,7 +150,7 @@ class SettingsDialog(QDialog):
         logo_layout.addRow('', logo_width_info)
         
         self.logo_height_spin = QSpinBox()
-        self.logo_height_spin.setRange(5, 30)
+        self.logo_height_spin.setRange(MIN_LOGO_HEIGHT, MAX_LOGO_HEIGHT)
         self.logo_height_spin.setSuffix(' ' + self.tr('lines'))
         logo_layout.addRow(self.tr('logo_max_height') + ':', self.logo_height_spin)
         
@@ -250,10 +267,10 @@ class SettingsDialog(QDialog):
     def reset_defaults(self):
         """Reset settings to defaults"""
         self.settings = {
-            'receipt_width': 48,
-            'receipt_length': 80,
-            'logo_max_width': 48,
-            'logo_max_height': 20,
+            'receipt_width': DEFAULT_RECEIPT_WIDTH,
+            'receipt_length': DEFAULT_RECEIPT_LENGTH,
+            'logo_max_width': DEFAULT_LOGO_WIDTH,
+            'logo_max_height': DEFAULT_LOGO_HEIGHT,
             'feed_lines': 3,
             'cut_paper': True,
             'bold_header': True,

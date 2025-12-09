@@ -34,7 +34,7 @@ setup(
         "PyQt5>=5.15.0",
         "PyYAML>=6.0",
         "python-escpos>=3.0",
-        "pillow>=9.0.0",
+        "pillow>=10.3.0",
     ],
     entry_points={
         "console_scripts": [

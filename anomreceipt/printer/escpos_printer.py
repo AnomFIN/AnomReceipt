@@ -57,8 +57,8 @@ class ESCPOSPrinter:
         if self.printer:
             try:
                 self.printer.close()
-            except:
-                pass
+            except Exception as e:
+                logger.warning(f"Error during printer disconnect: {e}")
             self.printer = None
             self.connection_type = None
             logger.info("Disconnected from printer")
