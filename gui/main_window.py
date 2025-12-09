@@ -37,8 +37,14 @@ class MainWindow(QMainWindow):
         # Receipt data
         self.current_receipt = None
         
+        # Flag to prevent updates during initialization
+        self._initializing = True
+        
         self.setup_ui()
         self.load_default_company()
+        
+        # Enable updates
+        self._initializing = False
         
         # Update preview initially
         self.update_preview()
@@ -374,6 +380,10 @@ class MainWindow(QMainWindow):
     
     def update_preview(self):
         """Update receipt preview and totals."""
+        # Skip if still initializing
+        if hasattr(self, '_initializing') and self._initializing:
+            return
+        
         # Get current company
         company_name = self.company_combo.currentText()
         company = get_company(company_name)
