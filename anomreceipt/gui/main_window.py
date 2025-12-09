@@ -15,6 +15,7 @@ from ..printer import ESCPOSPrinter
 from ..templates import TemplateManager
 from ..locale import Translator
 from .logo_editor import LogoEditor
+from .settings_dialog import SettingsDialog
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +82,18 @@ class MainWindow(QMainWindow):
         self.current_template = None
         self.items = []
         
+        # Settings
+        self.settings = {
+            'receipt_width': 48,
+            'receipt_length': 80,
+            'logo_max_width': 48,
+            'logo_max_height': 20,
+            'feed_lines': 3,
+            'cut_paper': True,
+            'bold_header': True,
+            'double_width_total': False
+        }
+        
         self.setup_ui()
         self.update_preview()
         
@@ -112,21 +125,29 @@ class MainWindow(QMainWindow):
         
         # Language toggle
         lang_group = QGroupBox(self.translator.translate('settings'))
-        lang_layout = QHBoxLayout()
+        lang_layout = QVBoxLayout()
         
+        # Language selectors
+        lang_row = QHBoxLayout()
         lang_label = QLabel(self.translator.translate('language') + ':')
         self.lang_combo = QComboBox()
         self.lang_combo.addItems(['EN', 'FI'])
         self.lang_combo.currentTextChanged.connect(self.change_ui_language)
-        lang_layout.addWidget(lang_label)
-        lang_layout.addWidget(self.lang_combo)
+        lang_row.addWidget(lang_label)
+        lang_row.addWidget(self.lang_combo)
         
         receipt_lang_label = QLabel(self.translator.translate('receipt_language') + ':')
         self.receipt_lang_combo = QComboBox()
         self.receipt_lang_combo.addItems(['EN', 'FI'])
         self.receipt_lang_combo.currentTextChanged.connect(self.update_preview)
-        lang_layout.addWidget(receipt_lang_label)
-        lang_layout.addWidget(self.receipt_lang_combo)
+        lang_row.addWidget(receipt_lang_label)
+        lang_row.addWidget(self.receipt_lang_combo)
+        lang_layout.addLayout(lang_row)
+        
+        # Settings button
+        self.settings_btn = QPushButton('⚙ ' + self.translator.translate('settings'))
+        self.settings_btn.clicked.connect(self.open_settings)
+        lang_layout.addWidget(self.settings_btn)
         
         lang_group.setLayout(lang_layout)
         layout.addWidget(lang_group)
@@ -275,9 +296,23 @@ class MainWindow(QMainWindow):
         # Update button texts and labels
         # This would be more complete in a real application
         
+    def open_settings(self):
+        """Open the settings dialog"""
+        dialog = SettingsDialog(self, self.translator, self.settings)
+        
+        if dialog.exec_() == QDialog.Accepted:
+            self.settings = dialog.get_settings()
+            self.update_preview()
+            logger.info(f"Settings updated: {self.settings}")
+            
     def open_logo_editor(self):
         """Open the logo editor dialog"""
-        editor = LogoEditor(self, self.translator)
+        editor = LogoEditor(
+            self, 
+            self.translator,
+            max_width=self.settings.get('logo_max_width', 48),
+            max_height=self.settings.get('logo_max_height', 20)
+        )
         
         # Load current logo if available
         if self.current_template and self.current_template.logo:
@@ -363,7 +398,8 @@ class MainWindow(QMainWindow):
                 preview.append(line)
                 
         # Items
-        preview.append('-' * 48)
+        receipt_width = self.settings.get('receipt_width', 48)
+        preview.append('-' * receipt_width)
         if receipt_data.get('items'):
             for item in receipt_data['items']:
                 name = item.get('name', '')
@@ -375,14 +411,14 @@ class MainWindow(QMainWindow):
                 else:
                     line = name
                     
-                spaces = 48 - len(line) - len(price)
+                spaces = receipt_width - len(line) - len(price)
                 if spaces > 0:
                     line += ' ' * spaces
                 line += price
                 
                 preview.append(line)
                 
-        preview.append('-' * 48)
+        preview.append('-' * receipt_width)
         
         # Footer
         if receipt_data.get('footer'):

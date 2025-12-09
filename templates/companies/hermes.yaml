@@ -1,0 +1,24 @@
+name: "Hermès Paris"
+logo_file: "hermes.txt"
+
+company_info:
+  name: "HERMÈS PARIS"
+  address: "24 Rue du Faubourg Saint-Honoré"
+  city: "75008 Paris, France"
+  vat_id: "FR-HER-1837"
+  phone: "+33 1 234 567 89"
+  email: "paris@hermes.com"
+
+payment_methods:
+  cash:
+    EN: "Cash"
+    FI: "Käteinen"
+  card:
+    EN: "Credit Card"
+    FI: "Luottokortti"
+  mobilepay:
+    EN: "Mobile Payment"
+    FI: "Mobiilimaksu"
+  bank:
+    EN: "Wire Transfer"
+    FI: "Tilisiirto"
