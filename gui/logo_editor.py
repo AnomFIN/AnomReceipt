@@ -2,6 +2,7 @@
 ASCII logo editor dialog.
 """
 import os
+import logging
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QTextEdit, 
     QPushButton, QLabel, QFileDialog, QMessageBox
@@ -9,6 +10,11 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt
 from i18n import get_i18n
+
+logger = logging.getLogger(__name__)
+
+# Template paths
+LOGOS_DIR = os.path.join("templates", "logos")
 
 
 class LogoEditorDialog(QDialog):
@@ -88,13 +94,13 @@ class LogoEditorDialog(QDialog):
         safe_name = "".join(c if c.isalnum() else "_" for c in self.company_name.lower())
         self.logo_file = f"{safe_name}.txt"
         
-        logo_path = os.path.join("templates", "logos", self.logo_file)
+        logo_path = os.path.join(LOGOS_DIR, self.logo_file)
         if os.path.exists(logo_path):
             try:
                 with open(logo_path, 'r', encoding='utf-8') as f:
                     self.logo_editor.setPlainText(f.read())
             except Exception as e:
-                print(f"Error loading logo: {e}")
+                logger.error(f"Error loading logo: {e}")
     
     def update_preview(self):
         """Update preview with current logo text."""
@@ -125,11 +131,10 @@ class LogoEditorDialog(QDialog):
             return
         
         # Ensure logos directory exists
-        logos_dir = os.path.join("templates", "logos")
-        os.makedirs(logos_dir, exist_ok=True)
+        os.makedirs(LOGOS_DIR, exist_ok=True)
         
         # Save to company-specific file
-        logo_path = os.path.join(logos_dir, self.logo_file)
+        logo_path = os.path.join(LOGOS_DIR, self.logo_file)
         
         try:
             with open(logo_path, 'w', encoding='utf-8') as f:

@@ -5,6 +5,12 @@ from typing import Optional
 from decimal import Decimal
 from models import ReceiptData, CompanyProfile
 import os
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Template paths
+LOGOS_DIR = os.path.join("templates", "logos")
 
 
 class ReceiptTemplate:
@@ -37,14 +43,16 @@ class ReceiptTemplate:
         if not logo_file:
             return []
         
-        logo_path = os.path.join("templates", "logos", logo_file)
+        logo_path = os.path.join(LOGOS_DIR, logo_file)
         if not os.path.exists(logo_path):
+            logger.debug(f"Logo file not found: {logo_path}")
             return []
         
         try:
             with open(logo_path, 'r', encoding='utf-8') as f:
                 return [line.rstrip() for line in f.readlines()]
-        except Exception:
+        except Exception as e:
+            logger.error(f"Failed to load logo {logo_file}: {e}")
             return []
     
     def render(self, data: ReceiptData) -> str:

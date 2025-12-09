@@ -3,6 +3,7 @@ ESC/POS printer abstraction for Epson TM-T70II.
 """
 from typing import Optional
 import logging
+from datetime import datetime
 
 try:
     from escpos.printer import Usb, Network, Dummy
@@ -183,7 +184,7 @@ is working correctly!
 
 ========================================
 """.format(self.connection_type, 
-           __import__('datetime').datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+           datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         
         return self.print_text(test_text)
     

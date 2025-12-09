@@ -3,7 +3,10 @@ Configuration management for the receipt printing application.
 """
 import json
 import os
+import logging
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 DEFAULT_SETTINGS = {
@@ -48,7 +51,7 @@ class Settings:
                     # Merge with defaults
                     self._deep_update(self.settings, loaded)
             except Exception as e:
-                print(f"Error loading settings: {e}")
+                logger.error(f"Error loading settings: {e}")
     
     def save(self):
         """Save settings to file."""
@@ -59,7 +62,7 @@ class Settings:
             with open(self.config_file, 'w') as f:
                 json.dump(self.settings, f, indent=2)
         except Exception as e:
-            print(f"Error saving settings: {e}")
+            logger.error(f"Error saving settings: {e}")
     
     def _deep_update(self, base: dict, update: dict):
         """Recursively update nested dictionaries."""
