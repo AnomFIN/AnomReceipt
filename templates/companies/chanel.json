@@ -1,0 +1,30 @@
+{
+  "name": "Chanel",
+  "logo_file": "chanel.txt",
+  "company_info": {
+    "name": "CHANEL",
+    "address": "31 Rue Cambon",
+    "city": "75001 Paris, France",
+    "vat_id": "FR-CHA-1910",
+    "phone": "+33 1 234 567 89",
+    "email": "boutique@chanel.com"
+  },
+  "payment_methods": {
+    "cash": {
+      "EN": "Cash",
+      "FI": "Käteinen"
+    },
+    "card": {
+      "EN": "Credit Card",
+      "FI": "Luottokortti"
+    },
+    "mobilepay": {
+      "EN": "Mobile Payment",
+      "FI": "Mobiilimaksu"
+    },
+    "bank": {
+      "EN": "Wire Transfer",
+      "FI": "Tilisiirto"
+    }
+  }
+}

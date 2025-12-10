@@ -1,0 +1,24 @@
+name: "Example Company Oy"
+logo_file: "example_logo.txt"
+
+company_info:
+  name: "Example Company Oy"
+  address: "Esimerkkikatu 123"
+  city: "00100 Helsinki"
+  vat_id: "1234567-8"
+  phone: "+358 40 123 4567"
+  email: "info@example.fi"
+
+payment_methods:
+  cash:
+    EN: "Cash"
+    FI: "Käteinen"
+  card:
+    EN: "Card"
+    FI: "Kortti"
+  mobilepay:
+    EN: "MobilePay"
+    FI: "MobilePay"
+  bank:
+    EN: "Bank Transfer"
+    FI: "Tilisiirto"

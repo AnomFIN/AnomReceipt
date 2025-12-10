@@ -1,0 +1,24 @@
+name: "Louis Vuitton"
+logo_file: "louis_vuitton.txt"
+
+company_info:
+  name: "LOUIS VUITTON"
+  address: "2 rue du Pont-Neuf"
+  city: "75001 Paris, France"
+  vat_id: "FR-LV-1854"
+  phone: "+33 1 234 567 89"
+  email: "boutique@louisvuitton.com"
+
+payment_methods:
+  cash:
+    EN: "Cash"
+    FI: "Käteinen"
+  card:
+    EN: "Credit Card"
+    FI: "Luottokortti"
+  mobilepay:
+    EN: "Mobile Payment"
+    FI: "Mobiilimaksu"
+  bank:
+    EN: "Wire Transfer"
+    FI: "Tilisiirto"
