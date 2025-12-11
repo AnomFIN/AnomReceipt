@@ -24,6 +24,9 @@ DEFAULT_SETTINGS = {
     "ui": {
         "window_width": 1200,
         "window_height": 800
+    },
+    "receipt": {
+        "width": 42  # characters per line
     }
 }
 
@@ -120,4 +123,12 @@ class Settings:
     def set_default_language(self, language: str):
         """Set default language."""
         self.set("defaults.language", language)
+        self.save()
+
+    # Receipt settings helpers
+    def get_receipt_width(self) -> int:
+        return int(self.get("receipt.width", 42))
+
+    def set_receipt_width(self, width: int):
+        self.set("receipt.width", int(width))
         self.save()

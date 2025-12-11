@@ -71,6 +71,10 @@ class LogoEditorDialog(QDialog):
         load_btn = QPushButton(self.i18n.t("load_logo"))
         load_btn.clicked.connect(self.load_logo)
         button_layout.addWidget(load_btn)
+
+        import_png_btn = QPushButton(self.i18n.t("import_png_logo"))
+        import_png_btn.clicked.connect(self.import_png_logo)
+        button_layout.addWidget(import_png_btn)
         
         save_btn = QPushButton(self.i18n.t("save_logo"))
         save_btn.clicked.connect(self.save_logo)
@@ -121,6 +125,28 @@ class LogoEditorDialog(QDialog):
                     self.logo_editor.setPlainText(f.read())
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to load logo: {e}")
+
+    def import_png_logo(self):
+        """Import a PNG logo and save it under templates/logos as company_name.png."""
+        file_name, _ = QFileDialog.getOpenFileName(
+            self,
+            self.i18n.t("import_png_logo"),
+            "",
+            "PNG Images (*.png)"
+        )
+        if not file_name:
+            return
+        # Ensure logos directory exists
+        os.makedirs(LOGOS_DIR, exist_ok=True)
+        safe_name = "".join(c if c.isalnum() else "_" for c in self.company_name.lower())
+        dest_path = os.path.join(LOGOS_DIR, f"{safe_name}.png")
+        try:
+            # Copy file
+            with open(file_name, 'rb') as src, open(dest_path, 'wb') as dst:
+                dst.write(src.read())
+            QMessageBox.information(self, "OK", f"PNG logo imported to {dest_path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to import PNG: {e}")
     
     def save_logo(self):
         """Save logo to file."""

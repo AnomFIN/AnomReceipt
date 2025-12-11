@@ -59,6 +59,15 @@ class EpsonTM70Printer:
                 if not Usb:
                     logger.error("python-escpos not installed")
                     return False
+                # Ensure PyUSB backend available for USB
+                try:
+                    import usb  # type: ignore
+                except Exception:
+                    logger.error(
+                        "Printing with USB connection requires PyUSB and libusb. "
+                        "Install with: pip install pyusb and on Debian/Ubuntu: sudo apt-get install libusb-1.0-0"
+                    )
+                    return False
                 
                 if self.device_path:
                     # Use specific device path if provided
@@ -123,6 +132,23 @@ class EpsonTM70Printer:
         if not self._is_connected or not self.printer:
             logger.error("Printer not connected")
             return False
+
+    def print_image(self, image_path: str) -> bool:
+        """Print an image (PNG) centered if supported."""
+        if not self._is_connected or not self.printer:
+            logger.error("Printer not connected")
+            return False
+        try:
+            # Center align and print image
+            try:
+                self.printer.set(align='center')
+            except Exception:
+                pass
+            self.printer.image(image_path)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to print image: {e}")
+            return False
         
         try:
             self.printer.text(text)
@@ -161,6 +187,135 @@ class EpsonTM70Printer:
             return True
         except Exception as e:
             logger.error(f"Failed to print receipt: {e}")
+            return False
+
+    # --- Rich text printing (basic HTML support) ---
+    def print_rich_html(self, html: str) -> bool:
+        """
+        Print basic formatted HTML from preview. Supports <b>/<strong>, <i>/<em>,
+        and font scaling via inline style font-size (maps to width/height multipliers).
+        Unknown tags are ignored; line breaks via <br>, <p>, and newlines.
+        """
+        if not self._is_connected or not self.printer:
+            logger.error("Printer not connected")
+            return False
+
+        try:
+            from html.parser import HTMLParser
+
+            class _Parser(HTMLParser):
+                def __init__(self):
+                    super().__init__()
+                    self.segments = []  # list of (text|('IMG',path), bold, italic, scale)
+                    self.bold = False
+                    self.italic = False
+                    self.scale = 1
+                    self._buf = []
+
+                def flush(self):
+                    if self._buf:
+                        text = ''.join(self._buf)
+                        self.segments.append((text, self.bold, self.italic, self.scale))
+                        self._buf = []
+
+                def handle_starttag(self, tag, attrs):
+                    if tag in ('b', 'strong'):
+                        self.flush()
+                        self.bold = True
+                    elif tag in ('i', 'em'):
+                        self.flush()
+                        self.italic = True
+                    elif tag == 'br':
+                        self._buf.append('\n')
+                    elif tag in ('p',):
+                        self._buf.append('\n')
+                    elif tag == 'img':
+                        # output pending text then add image segment
+                        self.flush()
+                        src = dict(attrs).get('src')
+                        if src and src.startswith('file://'):
+                            path = src[len('file://') :]
+                            self.segments.append((('IMG', path), self.bold, self.italic, self.scale))
+                    elif tag == 'span':
+                        # look for style font-size
+                        style = dict(attrs).get('style', '')
+                        size = None
+                        for part in style.split(';'):
+                            if 'font-size' in part:
+                                try:
+                                    size_val = part.split(':', 1)[1].strip()
+                                    if size_val.endswith('px'):
+                                        size = int(float(size_val[:-2]))
+                                    else:
+                                        size = int(float(size_val))
+                                except Exception:
+                                    pass
+                        if size:
+                            self.flush()
+                            # Map size to scale multiplier
+                            scale = 1
+                            if size >= 18:
+                                scale = 2
+                            else:
+                                scale = 1
+                            self.scale = max(1, min(8, scale))
+
+                def handle_endtag(self, tag):
+                    if tag in ('b', 'strong'):
+                        self.flush()
+                        self.bold = False
+                    elif tag in ('i', 'em'):
+                        self.flush()
+                        self.italic = False
+                    elif tag == 'span':
+                        self.flush()
+                        self.scale = 1
+                    elif tag in ('p',):
+                        self._buf.append('\n')
+
+                def handle_data(self, data):
+                    self._buf.append(data)
+
+                def close(self):
+                    self.flush()
+                    super().close()
+
+            parser = _Parser()
+            parser.feed(html)
+            parser.close()
+
+            # Print each segment with appropriate formatting
+            for seg, bold, italic, scale in parser.segments:
+                if isinstance(seg, tuple) and seg and seg[0] == 'IMG':
+                    path = seg[1]
+                    try:
+                        self.printer.set(align='center')
+                    except Exception:
+                        pass
+                    try:
+                        self.printer.image(path)
+                    except Exception as e:
+                        logger.error(f"Image print failed: {e}")
+                    continue
+                text = seg
+                text_type = ''
+                if bold:
+                    text_type += 'B'
+                if italic:
+                    text_type += 'I'
+                if text_type == '':
+                    text_type = None
+                try:
+                    self.printer.set(font='a', width=scale, height=scale, text_type=text_type)
+                except Exception:
+                    self.printer.set(font='a', width=scale, height=scale)
+                self.printer.text(text)
+
+            # Cut paper
+            self.printer.cut()
+            return True
+        except Exception as e:
+            logger.error(f"Failed to print rich HTML: {e}")
             return False
     
     def test_print(self) -> bool:

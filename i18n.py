@@ -38,9 +38,17 @@ TRANSLATIONS = {
         # Payment methods
         "cash": "Käteinen",
         "card": "Kortti",
+        "visa": "Visa",
         "mobilepay": "MobilePay",
         "bank_transfer": "Pankkisiirto",
         "other": "Muu",
+        # Preview editing
+        "edit_preview": "Muokkaa esikatselua",
+        "bold": "Lihavoi",
+        "italic": "Kursivoi",
+        "bigger": "Suurempi fontti",
+        "smaller": "Pienempi fontti",
+        "regenerate": "Päivitä datasta",
         
         # Settings dialog
         "settings_title": "Asetukset",
@@ -64,6 +72,7 @@ TRANSLATIONS = {
         "load_logo": "Lataa logo",
         "save_logo": "Tallenna logo",
         "clear_logo": "Tyhjennä",
+        "import_png_logo": "Tuo PNG-logo",
         
         # Messages
         "print_success": "Kuitti tulostettu onnistuneesti",
@@ -110,9 +119,17 @@ TRANSLATIONS = {
         # Payment methods
         "cash": "Cash",
         "card": "Card",
+        "visa": "Visa",
         "mobilepay": "MobilePay",
         "bank_transfer": "Bank transfer",
         "other": "Other",
+        # Preview editing
+        "edit_preview": "Edit preview",
+        "bold": "Bold",
+        "italic": "Italic",
+        "bigger": "Font bigger",
+        "smaller": "Font smaller",
+        "regenerate": "Regenerate from data",
         
         # Settings dialog
         "settings_title": "Settings",
@@ -136,6 +153,7 @@ TRANSLATIONS = {
         "load_logo": "Load logo",
         "save_logo": "Save logo",
         "clear_logo": "Clear",
+        "import_png_logo": "Import PNG logo",
         
         # Messages
         "print_success": "Receipt printed successfully",

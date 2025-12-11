@@ -12,6 +12,27 @@ logger = logging.getLogger(__name__)
 # Template paths
 LOGOS_DIR = os.path.join("templates", "logos")
 
+def get_company_logo(company: CompanyProfile):
+    """Resolve company logo path and type.
+    Returns (path, type) where type in {'txt','png'} or (None, None) if not found.
+    """
+    # Explicit file set
+    if company.logo_file:
+        path = os.path.join(LOGOS_DIR, company.logo_file)
+        if os.path.exists(path):
+            ext = os.path.splitext(path)[1].lower()
+            if ext == '.txt':
+                return path, 'txt'
+            if ext == '.png':
+                return path, 'png'
+    # Try default by company safe name
+    safe = ''.join(c if c.isalnum() else '_' for c in company.name.lower())
+    for ext in ('.png', '.txt'):
+        path = os.path.join(LOGOS_DIR, safe + ext)
+        if os.path.exists(path):
+            return path, ext.lstrip('.')
+    return None, None
+
 
 class ReceiptTemplate:
     """Base class for receipt templates."""
@@ -38,21 +59,18 @@ class ReceiptTemplate:
         """Create a horizontal line."""
         return char * self.width
     
-    def _load_logo(self, logo_file: Optional[str]) -> list:
-        """Load ASCII logo from file."""
-        if not logo_file:
+    def _load_logo(self, company: CompanyProfile) -> list:
+        """Load ASCII logo lines if present. PNGs are handled in preview/printer."""
+        path, ltype = get_company_logo(company)
+        if not path:
             return []
-        
-        logo_path = os.path.join(LOGOS_DIR, logo_file)
-        if not os.path.exists(logo_path):
-            logger.debug(f"Logo file not found: {logo_path}")
+        if ltype == 'png':
             return []
-        
         try:
-            with open(logo_path, 'r', encoding='utf-8') as f:
+            with open(path, 'r', encoding='utf-8') as f:
                 return [line.rstrip() for line in f.readlines()]
         except Exception as e:
-            logger.error(f"Failed to load logo {logo_file}: {e}")
+            logger.error(f"Failed to load logo {path}: {e}")
             return []
     
     def render(self, data: ReceiptData) -> str:
@@ -68,7 +86,7 @@ class ReceiptTemplate:
         lines = []
         
         # Logo
-        logo_lines = self._load_logo(data.company.logo_file)
+        logo_lines = self._load_logo(data.company)
         for logo_line in logo_lines:
             lines.append(self._center(logo_line))
         if logo_lines:
@@ -189,6 +207,25 @@ class ReceiptTemplate:
         # Payment method
         payment_label = "Maksutapa" if data.language == "FI" else "Payment method"
         lines.append(self._left_right(f"{payment_label}:", data.payment_method))
+        
+        # Optional payment details (e.g., card details)
+        if data.payment_details:
+            details = data.payment_details
+            # Standard ordering
+            mapping = [
+                ("card_type", "Card"),
+                ("pan_masked", "PAN"),
+                ("auth_code", "Auth"),
+                ("aid", "AID"),
+                ("app_label", "App"),
+                ("tvr", "TVR"),
+                ("tsi", "TSI"),
+                ("transaction_id", "TransID"),
+                ("terminal_id", "Terminal"),
+            ]
+            for key, label in mapping:
+                if details.get(key):
+                    lines.append(self._left_right(f"{label}:", str(details[key])))
         
         lines.append("")
         

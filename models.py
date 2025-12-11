@@ -67,6 +67,7 @@ class ReceiptData:
     language: str = "FI"
     currency: str = "EUR"
     custom_footer: Optional[str] = None
+    payment_details: Optional[dict] = None
     
     @property
     def subtotal(self) -> Decimal:

@@ -14,6 +14,7 @@ from PyQt5.QtCore import Qt, QDateTime, pyqtSignal
 from models import ReceiptData, ReceiptItem
 from templates.companies import get_company, get_company_names
 from templates.template_engine import ReceiptTemplate
+from templates.template_engine import get_company_logo, LOGOS_DIR
 from config.settings import Settings
 from i18n import get_i18n
 from printer.escpos_printer import EpsonTM70Printer, DummyPrinter
@@ -32,7 +33,7 @@ class MainWindow(QMainWindow):
         self.settings = Settings()
         self.i18n = get_i18n()
         self.i18n.set_language(self.settings.get_default_language())
-        self.template_engine = ReceiptTemplate()
+        self.template_engine = ReceiptTemplate(width=self.settings.get_receipt_width())
         
         # Receipt data
         self.current_receipt = None
@@ -223,9 +224,39 @@ class MainWindow(QMainWindow):
         
         # Preview text area
         self.preview_text = QTextEdit()
-        self.preview_text.setFont(QFont("Courier", 9))
+        self.preview_text.setAcceptRichText(True)
+        self.preview_text.setFont(QFont("Courier", 10))
         self.preview_text.setReadOnly(True)
         layout.addWidget(self.preview_text)
+
+        # Editing toolbar
+        toolbar = QHBoxLayout()
+        self.edit_toggle = QPushButton(self.i18n.t("edit_preview"))
+        self.edit_toggle.setCheckable(True)
+        self.edit_toggle.toggled.connect(self.on_edit_toggle)
+        toolbar.addWidget(self.edit_toggle)
+
+        bold_btn = QPushButton(self.i18n.t("bold"))
+        bold_btn.clicked.connect(self.make_bold)
+        toolbar.addWidget(bold_btn)
+
+        italic_btn = QPushButton(self.i18n.t("italic"))
+        italic_btn.clicked.connect(self.make_italic)
+        toolbar.addWidget(italic_btn)
+
+        bigger_btn = QPushButton(self.i18n.t("bigger"))
+        bigger_btn.clicked.connect(lambda: self.adjust_font_size(1))
+        toolbar.addWidget(bigger_btn)
+
+        smaller_btn = QPushButton(self.i18n.t("smaller"))
+        smaller_btn.clicked.connect(lambda: self.adjust_font_size(-1))
+        toolbar.addWidget(smaller_btn)
+
+        regen_btn = QPushButton(self.i18n.t("regenerate"))
+        regen_btn.clicked.connect(self.update_preview_from_data)
+        toolbar.addWidget(regen_btn)
+
+        layout.addLayout(toolbar)
         
         group.setLayout(layout)
         return group
@@ -281,6 +312,7 @@ class MainWindow(QMainWindow):
         methods = [
             self.i18n.t("cash"),
             self.i18n.t("card"),
+            self.i18n.t("visa"),
             self.i18n.t("mobilepay"),
             self.i18n.t("bank_transfer"),
             self.i18n.t("other")
@@ -383,7 +415,15 @@ class MainWindow(QMainWindow):
         # Skip if still initializing
         if hasattr(self, '_initializing') and self._initializing:
             return
-        
+        # If user is editing preview, don't overwrite unless explicit
+        if hasattr(self, 'edit_toggle') and self.edit_toggle.isChecked():
+            # Still keep totals synced
+            self.update_preview_from_data(update_view=False)
+            return
+        self.update_preview_from_data(update_view=True)
+
+    def update_preview_from_data(self, update_view: bool = True):
+        """Build receipt data and optionally update preview area."""
         # Get current company
         company_name = self.company_combo.currentText()
         company = get_company(company_name)
@@ -407,6 +447,27 @@ class MainWindow(QMainWindow):
             qt_datetime.time().minute()
         )
         
+        # Payment details (random for Visa)
+        payment_text = self.payment_combo.currentText()
+        pay_details = None
+        if 'visa' in payment_text.lower():
+            from random import randint
+            last4 = f"{randint(0, 9999):04d}"
+            auth = f"{randint(0, 999999):06d}"
+            trans_id = f"{randint(10000000, 99999999)}"
+            term_id = f"T{randint(100000, 999999)}"
+            pay_details = {
+                "card_type": "VISA",
+                "pan_masked": f"**** **** **** {last4}",
+                "auth_code": auth,
+                "aid": "A0000000031010",
+                "app_label": "VISA CREDIT",
+                "tvr": "0000000000",
+                "tsi": "E800",
+                "transaction_id": trans_id,
+                "terminal_id": term_id,
+            }
+
         self.current_receipt = ReceiptData(
             company=company,
             items=items,
@@ -414,9 +475,10 @@ class MainWindow(QMainWindow):
             reference_number=self.reference_number.text() or None,
             invoice_number=self.invoice_number.text() or None,
             date_time=dt,
-            payment_method=self.payment_combo.currentText(),
+            payment_method=payment_text,
             language=language,
-            currency="EUR"
+            currency="EUR",
+            payment_details=pay_details,
         )
         
         # Update totals
@@ -424,9 +486,61 @@ class MainWindow(QMainWindow):
         self.total_vat_label.setText(f"{float(self.current_receipt.total_vat):.2f} EUR")
         self.grand_total_label.setText(f"{float(self.current_receipt.total):.2f} EUR")
         
-        # Render preview
-        receipt_text = self.template_engine.render(self.current_receipt)
-        self.preview_text.setPlainText(receipt_text)
+        # Ensure template width reflects settings
+        self.template_engine.width = self.settings.get_receipt_width()
+        # Render preview to HTML-pre block to preserve monospacing and allow inline styles
+        if update_view:
+            receipt_text = self.template_engine.render(self.current_receipt)
+            escaped = receipt_text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            # Optional logo image embed
+            img_html = ''
+            try:
+                logo_path, ltype = get_company_logo(self.current_receipt.company)
+                if logo_path and ltype == 'png':
+                    img_html = f"<div style='text-align:center'><img src='file://{logo_path}' style='max-width:100%;height:auto' /></div>\n"
+            except Exception:
+                pass
+            html = (
+                img_html +
+                "<pre style=\"font-family: 'Courier New', monospace; font-size: 12px; white-space: pre;\">"
+                + escaped + "</pre>"
+            )
+            self.preview_text.setHtml(html)
+
+    def on_edit_toggle(self, checked: bool):
+        self.preview_text.setReadOnly(not checked)
+
+    def make_bold(self):
+        cursor = self.preview_text.textCursor()
+        if not cursor.hasSelection():
+            return
+        cursor.mergeCharFormat(self._format(weight=QFont.Bold))
+
+    def make_italic(self):
+        cursor = self.preview_text.textCursor()
+        if not cursor.hasSelection():
+            return
+        cursor.mergeCharFormat(self._format(italic=True))
+
+    def adjust_font_size(self, delta: int):
+        cursor = self.preview_text.textCursor()
+        if not cursor.hasSelection():
+            return
+        fmt = cursor.charFormat()
+        size = fmt.fontPointSize() or 12
+        size = max(6, min(48, size + delta))
+        cursor.mergeCharFormat(self._format(point_size=size))
+
+    def _format(self, weight=None, italic=None, point_size=None):
+        from PyQt5.QtGui import QTextCharFormat
+        fmt = QTextCharFormat()
+        if weight is not None:
+            fmt.setFontWeight(weight)
+        if italic is not None:
+            fmt.setFontItalic(italic)
+        if point_size is not None:
+            fmt.setFontPointSize(point_size)
+        return fmt
     
     def print_receipt(self):
         """Print the current receipt."""
@@ -459,14 +573,30 @@ class MainWindow(QMainWindow):
                 printer = DummyPrinter()
                 printer.connect()
             
-            # Get receipt text
+        # Get receipt content: if user edited, send rich text; otherwise plain
+        ok = False
+        if hasattr(self, 'edit_toggle') and self.edit_toggle.isChecked():
+            html = self.preview_text.toHtml()
+            try:
+                ok = printer.print_rich_html(html)
+            except Exception:
+                ok = False
+        else:
+            # If PNG logo exists, print it first
+            logo_path, ltype = get_company_logo(self.current_receipt.company)
+            if logo_path and ltype == 'png':
+                try:
+                    printer.print_image(logo_path)
+                except Exception:
+                    pass
             receipt_text = self.template_engine.render(self.current_receipt)
-            
-            # Print
-            if printer.print_receipt(receipt_text):
-                self.status_bar.showMessage(self.i18n.t("print_success"), 3000)
-            else:
-                self.status_bar.showMessage(self.i18n.t("print_error"), 3000)
+            ok = printer.print_receipt(receipt_text)
+        
+        # Print status
+        if ok:
+            self.status_bar.showMessage(self.i18n.t("print_success"), 3000)
+        else:
+            self.status_bar.showMessage(self.i18n.t("print_error"), 3000)
             
             printer.disconnect()
             
@@ -522,6 +652,8 @@ class MainWindow(QMainWindow):
             self.language_combo.setCurrentIndex(index)
         
         self.status_bar.showMessage(self.i18n.t("settings_saved"), 3000)
+        # Re-render with possibly new receipt width
+        self.update_preview_from_data(update_view=True)
     
     def open_logo_editor(self):
         """Open logo editor dialog."""
