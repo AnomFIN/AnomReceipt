@@ -69,6 +69,11 @@ class LogoEditor(QDialog):
         self.save_btn = QPushButton(self.tr('save_logo'))
         self.save_btn.clicked.connect(self.save_logo)
         button_layout.addWidget(self.save_btn)
+
+        # Import PNG button
+        self.import_png_btn = QPushButton('Import PNG')
+        self.import_png_btn.clicked.connect(self.import_png_logo)
+        button_layout.addWidget(self.import_png_btn)
         
         button_layout.addStretch()
         
@@ -232,7 +237,7 @@ class LogoEditor(QDialog):
             except Exception as e:
                 logger.error(f"Error saving logo: {e}")
                 QMessageBox.warning(self, self.tr('error'), f"Failed to save logo: {e}")
-                
+        
     def get_logo(self):
         """Get the current logo text"""
         return self.logo_text.toPlainText()
@@ -240,3 +245,23 @@ class LogoEditor(QDialog):
     def set_logo(self, logo_text):
         """Set the logo text"""
         self.logo_text.setPlainText(logo_text)
+
+    def import_png_logo(self):
+        """Import a PNG file into templates/logos directory."""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            'Import PNG Logo',
+            str(self.logos_dir),
+            'PNG Images (*.png)'
+        )
+        if not file_path:
+            return
+        try:
+            src = Path(file_path)
+            dest = self.logos_dir / src.name
+            dest.write_bytes(src.read_bytes())
+            QMessageBox.information(self, self.tr('success'), f"Imported to {dest}")
+            # Refresh library (only shows .txt, but we still import PNG for templates)
+        except Exception as e:
+            logger.error(f"Error importing PNG: {e}")
+            QMessageBox.warning(self, self.tr('error'), f"Failed to import PNG: {e}")

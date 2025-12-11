@@ -1,0 +1,24 @@
+company_info:
+  address: Varastokatu 7
+  city: 60100 Seinäjoki
+  name: Puuilo
+  phone: ''
+  vat_id: FI00000000
+logo_file: puuilo_auto.png
+name: Puuilo
+payment_methods:
+  bank:
+    EN: Bank Transfer
+    FI: Tilisiirto
+  card:
+    EN: Card
+    FI: Kortti
+  cash:
+    EN: Cash
+    FI: Käteinen
+  mobilepay:
+    EN: MobilePay
+    FI: MobilePay
+  visa:
+    EN: Visa
+    FI: Visa

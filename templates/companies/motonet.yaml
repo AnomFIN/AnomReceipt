@@ -1,0 +1,24 @@
+name: Motonet
+company_info:
+  name: Motonet
+  address: Martinkyläntie 9
+  city: 01720 Vantaa
+  vat_id: FI00000000
+  phone: ''
+payment_methods:
+  cash:
+    FI: Käteinen
+    EN: Cash
+  card:
+    FI: Kortti
+    EN: Card
+  visa:
+    FI: Visa
+    EN: Visa
+  mobilepay:
+    FI: MobilePay
+    EN: MobilePay
+  bank:
+    FI: Tilisiirto
+    EN: Bank Transfer
+logo_file: motonet.txt

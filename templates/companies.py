@@ -117,6 +117,11 @@ COMPANIES = {
         default_footer_fi="Kiitos asioinnista – Tervetuloa uudelleen!",
         default_footer_en="Welcome again!",
         logo_file="puuilo.txt",
+        store_number="101",
+        register_id="K1",
+        default_cashier_name="MYYJÄ",
+        default_campaign_fi="Seuraa tarjouksia: puuilo.fi",
+        default_campaign_en="Follow deals: puuilo.fi",
     ),
     "Tokmanni": CompanyProfile(
         name="Tokmanni",
@@ -130,6 +135,11 @@ COMPANIES = {
         default_footer_fi="Kiitos asioinnista! Säästä Tokmannilla.",
         default_footer_en="Thank you for shopping!",
         logo_file="tokmanni.txt",
+        store_number="201",
+        register_id="K2",
+        default_cashier_name="KASSA",
+        default_campaign_fi="Lataa Tokmanni-appi – tarjouksia!",
+        default_campaign_en="Download Tokmanni app – deals!",
     ),
     "Motonet": CompanyProfile(
         name="Motonet",
@@ -143,6 +153,11 @@ COMPANIES = {
         default_footer_fi="Tervetuloa uudelleen – Motonet.",
         default_footer_en="Welcome again!",
         logo_file="motonet.txt",
+        store_number="301",
+        register_id="K3",
+        default_cashier_name="MYYNTI",
+        default_campaign_fi="Klubi-edut: motonet.fi",
+        default_campaign_en="Club benefits: motonet.fi",
     ),
 }
 

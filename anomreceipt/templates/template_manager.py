@@ -19,11 +19,12 @@ class ReceiptTemplate:
     # Default VAT rate (24% for Finland, configurable per template)
     DEFAULT_VAT_RATE = 0.24
     
-    def __init__(self, name, company_info, payment_methods, logo=None, vat_rate=None):
+    def __init__(self, name, company_info, payment_methods, logo=None, vat_rate=None, logo_image=None):
         self.name = name
         self.company_info = company_info
         self.payment_methods = payment_methods
         self.logo = logo or ""
+        self.logo_image = logo_image  # file path to PNG/JPEG
         self.vat_rate = vat_rate if vat_rate is not None else self.DEFAULT_VAT_RATE
         
     def generate_receipt(self, items, payment_method, language='EN', customer_info=None):
@@ -41,6 +42,7 @@ class ReceiptTemplate:
         """
         receipt = {
             'logo': self.logo,
+            'logo_image': self.logo_image,
             'header': [],
             'items': [],
             'footer': [],
@@ -59,6 +61,18 @@ class ReceiptTemplate:
         if self.company_info.get('phone'):
             phone_label = 'Puh:' if language == 'FI' else 'Phone:'
             receipt['header'].append(f"{phone_label} {self.company_info['phone']}")
+        # Opening hours if available
+        oh = self.company_info.get('opening_hours')
+        if oh:
+            receipt['header'].append('')
+            hours_title = 'Aukioloajat' if language == 'FI' else 'Opening hours'
+            receipt['header'].append(hours_title)
+            if isinstance(oh, list):
+                for line in oh[:7]:
+                    receipt['header'].append(line)
+            elif isinstance(oh, str):
+                for line in oh.splitlines()[:7]:
+                    receipt['header'].append(line)
             
         receipt['header'].append('')
         receipt['header'].append(datetime.now().strftime('%d.%m.%Y %H:%M:%S'))
@@ -91,11 +105,13 @@ class ReceiptTemplate:
         receipt['footer'].append(f"{payment_label} {payment_text}")
         receipt['footer'].append('')
         
-        # Thank you message
+        # Thank you messages
         if language == 'FI':
-            receipt['footer'].append('Kiitos!')
+            receipt['footer'].append('Kiitos käynnistä!')
+            receipt['footer'].append('Tervetuloa uudelleen!')
         else:
-            receipt['footer'].append('Thank you!')
+            receipt['footer'].append('Thank you for your visit!')
+            receipt['footer'].append('Welcome again!')
             
         return receipt
 
@@ -106,6 +122,7 @@ class TemplateManager:
     def __init__(self, templates_dir='templates/companies'):
         self.templates_dir = Path(templates_dir)
         self.templates = {}
+        self.template_files = {}
         self.load_templates()
         
     def load_templates(self):
@@ -120,6 +137,7 @@ class TemplateManager:
                     template = self.load_template_file(file_path)
                     if template:
                         self.templates[template.name] = template
+                        self.template_files[template.name] = file_path
                         logger.info(f"Loaded template: {template.name}")
                 except Exception as e:
                     logger.error(f"Error loading template {file_path}: {e}")
@@ -133,20 +151,25 @@ class TemplateManager:
                 else:
                     data = yaml.safe_load(f)
                     
-            # Load logo if specified
+            # Load logo if specified (.txt as ASCII or .png/.jpg as image path)
             logo = ""
+            logo_image = None
             if data.get('logo_file'):
                 logo_path = Path('templates/logos') / data['logo_file']
                 if logo_path.exists():
-                    with open(logo_path, 'r', encoding='utf-8') as lf:
-                        logo = lf.read()
+                    if logo_path.suffix.lower() == '.txt':
+                        with open(logo_path, 'r', encoding='utf-8') as lf:
+                            logo = lf.read()
+                    elif logo_path.suffix.lower() in ('.png', '.jpg', '.jpeg'):
+                        logo_image = str(logo_path)
                         
             return ReceiptTemplate(
                 name=data.get('name', file_path.stem),
                 company_info=data.get('company_info', {}),
                 payment_methods=data.get('payment_methods', {}),
                 logo=logo,
-                vat_rate=data.get('vat_rate')  # Optional VAT rate override
+                vat_rate=data.get('vat_rate'),  # Optional VAT rate override
+                logo_image=logo_image,
             )
         except Exception as e:
             logger.error(f"Error loading template file {file_path}: {e}")
@@ -183,4 +206,57 @@ class TemplateManager:
             return True
         except Exception as e:
             logger.error(f"Error saving template: {e}")
+            return False
+
+    def save_company_info(self, name: str, company_info: dict) -> bool:
+        """Persist updated company_info back to its template file."""
+        file_path = self.template_files.get(name)
+        if not file_path:
+            logger.error(f"Template file not found for {name}")
+            return False
+
+    def save_logo_file(self, name: str, logo_filename: str) -> bool:
+        """Persist logo_file (PNG/TXT) at template top-level and update in-memory logo/image."""
+        file_path = self.template_files.get(name)
+        if not file_path:
+            logger.error(f"Template file not found for {name}")
+            return False
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f) if file_path.suffix == '.json' else yaml.safe_load(f)
+            data['logo_file'] = logo_filename
+            with open(file_path, 'w', encoding='utf-8') as f:
+                if file_path.suffix == '.json':
+                    json.dump(data, f, indent=2, ensure_ascii=False)
+                else:
+                    yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
+            # Update in-memory template
+            tpl = self.templates.get(name)
+            if tpl:
+                from pathlib import Path as _P
+                p = _P('templates/logos') / logo_filename
+                tpl.logo = ''
+                tpl.logo_image = str(p) if p.exists() else None
+            return True
+        except Exception as e:
+            logger.error(f"Error saving logo_file to template {file_path}: {e}")
+            return False
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f) if file_path.suffix == '.json' else yaml.safe_load(f)
+            if 'company_info' not in data:
+                data['company_info'] = {}
+            data['company_info'].update({k: v for k, v in company_info.items() if v})
+            with open(file_path, 'w', encoding='utf-8') as f:
+                if file_path.suffix == '.json':
+                    json.dump(data, f, indent=2, ensure_ascii=False)
+                else:
+                    yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
+            # Update in-memory too
+            tpl = self.templates.get(name)
+            if tpl:
+                tpl.company_info.update({k: v for k, v in company_info.items() if v})
+            return True
+        except Exception as e:
+            logger.error(f"Error saving company info to template {file_path}: {e}")
             return False

@@ -26,6 +26,12 @@ class CompanyProfile:
     default_footer_fi: Optional[str] = None
     default_footer_en: Optional[str] = None
     logo_file: Optional[str] = None
+    # Chain/store extras
+    store_number: Optional[str] = None
+    register_id: Optional[str] = None
+    default_cashier_name: Optional[str] = None
+    default_campaign_fi: Optional[str] = None
+    default_campaign_en: Optional[str] = None
 
 
 @dataclass
@@ -68,6 +74,11 @@ class ReceiptData:
     currency: str = "EUR"
     custom_footer: Optional[str] = None
     payment_details: Optional[dict] = None
+    # Store/pos details
+    store_number: Optional[str] = None
+    register_id: Optional[str] = None
+    cashier_name: Optional[str] = None
+    receipt_id: Optional[str] = None
     
     @property
     def subtotal(self) -> Decimal:

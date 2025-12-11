@@ -126,6 +126,17 @@ class ReceiptTemplate:
         vat_label = "Y-tunnus" if data.language == "FI" else "VAT ID"
         lines.append(self._center(f"{vat_label}: {company.vat_id}"))
         
+        # Store/pos details
+        if data.store_number:
+            lbl = "Myymälä" if data.language == "FI" else "Store"
+            lines.append(self._center(f"{lbl}: {data.store_number}"))
+        if data.register_id:
+            lbl = "Kassa" if data.language == "FI" else "Register"
+            lines.append(self._center(f"{lbl}: {data.register_id}"))
+        if data.cashier_name:
+            lbl = "Kassahenkilö" if data.language == "FI" else "Cashier"
+            lines.append(self._center(f"{lbl}: {data.cashier_name}"))
+        
         lines.append(self._line("="))
         
         # Receipt info
@@ -139,6 +150,10 @@ class ReceiptTemplate:
         if data.reference_number:
             ref_label = "Viite" if data.language == "FI" else "Reference"
             lines.append(self._left_right(f"{ref_label}:", data.reference_number))
+        
+        if data.receipt_id:
+            lbl = "Kuitti-ID" if data.language == "FI" else "Receipt ID"
+            lines.append(self._left_right(f"{lbl}:", data.receipt_id))
         
         if data.customer_name:
             cust_label = "Asiakas" if data.language == "FI" else "Customer"
@@ -215,13 +230,19 @@ class ReceiptTemplate:
             mapping = [
                 ("card_type", "Card"),
                 ("pan_masked", "PAN"),
+                ("expiry", "Expiry"),
                 ("auth_code", "Auth"),
                 ("aid", "AID"),
                 ("app_label", "App"),
                 ("tvr", "TVR"),
                 ("tsi", "TSI"),
+                ("entry_mode", "Entry"),
+                ("app_cryptogram", "AC"),
+                ("rrn", "RRN"),
+                ("stan", "STAN"),
                 ("transaction_id", "TransID"),
-                ("terminal_id", "Terminal"),
+                ("terminal_id", "TID"),
+                ("merchant_id", "MID"),
             ]
             for key, label in mapping:
                 if details.get(key):
@@ -240,5 +261,13 @@ class ReceiptTemplate:
             footer_text = "Kiitos käynnistä!" if data.language == "FI" else "Thank you for your visit!"
         
         lines.append(self._center(footer_text))
+        
+        # Chain campaign text
+        if data.language == "FI" and data.company.default_campaign_fi:
+            lines.append("")
+            lines.append(self._center(data.company.default_campaign_fi))
+        if data.language == "EN" and data.company.default_campaign_en:
+            lines.append("")
+            lines.append(self._center(data.company.default_campaign_en))
         
         return lines

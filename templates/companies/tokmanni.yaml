@@ -1,0 +1,24 @@
+name: Tokmanni
+company_info:
+  name: Tokmanni
+  address: Maalarinkuja 1
+  city: 04200 Kerava
+  vat_id: FI00000000
+  phone: ''
+payment_methods:
+  cash:
+    FI: Käteinen
+    EN: Cash
+  card:
+    FI: Kortti
+    EN: Card
+  visa:
+    FI: Visa
+    EN: Visa
+  mobilepay:
+    FI: MobilePay
+    EN: MobilePay
+  bank:
+    FI: Tilisiirto
+    EN: Bank Transfer
+logo_file: tokmanni.txt

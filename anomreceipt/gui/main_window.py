@@ -7,15 +7,24 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QLabel, QComboBox, QPushButton, QTableWidget, 
                              QTableWidgetItem, QLineEdit, QTextEdit, QGroupBox,
                              QMessageBox, QDialog, QFormLayout, QSpinBox)
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont, QFontDatabase
 import logging
+import math
+import re
+import threading
 
 from ..printer import ESCPOSPrinter
 from ..templates import TemplateManager
 from ..locale import Translator
 from .logo_editor import LogoEditor
 from .settings_dialog import SettingsDialog
+try:
+    import requests
+    from bs4 import BeautifulSoup
+except Exception:
+    requests = None
+    BeautifulSoup = None
 
 logger = logging.getLogger(__name__)
 
@@ -190,6 +199,21 @@ class MainWindow(QMainWindow):
         self.logo_btn = QPushButton(self.translator.translate('edit_logo'))
         self.logo_btn.clicked.connect(self.open_logo_editor)
         company_layout.addWidget(self.logo_btn)
+
+        # Auto-fetch company info button
+        self.fetch_info_btn = QPushButton('Fetch company info')
+        self.fetch_info_btn.clicked.connect(self.fetch_company_info)
+        company_layout.addWidget(self.fetch_info_btn)
+
+        # Find nearest store by postal/city
+        nearest_row = QHBoxLayout()
+        self.find_store_input = QLineEdit()
+        self.find_store_input.setPlaceholderText('Postinumero tai paikkakunta')
+        nearest_row.addWidget(self.find_store_input)
+        self.find_store_btn = QPushButton('Find nearest store')
+        self.find_store_btn.clicked.connect(self.find_nearest_store)
+        nearest_row.addWidget(self.find_store_btn)
+        company_layout.addLayout(nearest_row)
         
         company_group.setLayout(company_layout)
         layout.addWidget(company_group)
@@ -199,7 +223,7 @@ class MainWindow(QMainWindow):
         payment_layout = QVBoxLayout()
         
         self.payment_combo = QComboBox()
-        self.payment_combo.addItems(['cash', 'card', 'mobilepay', 'bank'])
+        self.payment_combo.addItems(['cash', 'card', 'visa', 'mobilepay', 'bank'])
         self.payment_combo.currentTextChanged.connect(self.update_preview)
         payment_layout.addWidget(self.payment_combo)
         
@@ -238,9 +262,422 @@ class MainWindow(QMainWindow):
         self.print_btn.clicked.connect(self.print_receipt)
         self.print_btn.setStyleSheet("background-color: #4CAF50; color: white; font-size: 16px; padding: 10px;")
         layout.addWidget(self.print_btn)
+
+        # Chain-styled logo generators
+        self.gen_logo_puuilo_btn = QPushButton('Generate PUUILO logo')
+        self.gen_logo_puuilo_btn.clicked.connect(self.generate_puuilo_logo)
+        self.gen_logo_puuilo_btn.setVisible(False)
+        layout.addWidget(self.gen_logo_puuilo_btn)
+
+        self.gen_logo_tokmanni_btn = QPushButton('Generate TOKMANNI logo')
+        self.gen_logo_tokmanni_btn.clicked.connect(self.generate_tokmanni_logo)
+        self.gen_logo_tokmanni_btn.setVisible(False)
+        layout.addWidget(self.gen_logo_tokmanni_btn)
+
+        self.gen_logo_motonet_btn = QPushButton('Generate MOTONET logo')
+        self.gen_logo_motonet_btn.clicked.connect(self.generate_motonet_logo)
+        self.gen_logo_motonet_btn.setVisible(False)
+        layout.addWidget(self.gen_logo_motonet_btn)
         
         panel.setLayout(layout)
         return panel
+
+    def generate_puuilo_logo(self):
+        try:
+            from PIL import Image, ImageDraw, ImageFont
+        except Exception:
+            QMessageBox.warning(self, 'Pillow missing', 'Pillow not installed; cannot generate image.')
+            return
+        company_name = self.company_combo.currentText()
+        W, H = 384, 120
+        img = Image.new('RGB', (W, H), color=(0, 0, 0))
+        draw = ImageDraw.Draw(img)
+        text = 'PUUILO'
+        try:
+            font = ImageFont.truetype('DejaVuSans-Bold.ttf', 72)
+        except Exception:
+            font = ImageFont.load_default()
+        try:
+            bbox = draw.textbbox((0, 0), text, font=font)
+            tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        except Exception:
+            tw, th = draw.textsize(text, font=font)
+        x = (W - tw) / 2
+        y = (H - th) / 2
+        draw.text((x, y), text, fill=(255, 255, 255), font=font)
+        from pathlib import Path
+        logos_dir = Path('templates/logos')
+        logos_dir.mkdir(parents=True, exist_ok=True)
+        out_name = 'puuilo_auto.png'
+        out_path = logos_dir / out_name
+        img.save(str(out_path))
+        ok = self.template_manager.save_logo_file(company_name, out_name)
+        if ok:
+            if self.current_template:
+                self.current_template.logo = ''
+                self.current_template.logo_image = str(out_path)
+            self.update_preview_force()
+            QMessageBox.information(self, 'OK', f'Generated logo set for {company_name}.')
+        else:
+            QMessageBox.warning(self, 'Error', 'Failed to update template with new logo.')
+
+    def _generate_banner_logo(self, text: str, bg_rgb: tuple, fg_rgb: tuple, filename: str):
+        try:
+            from PIL import Image, ImageDraw, ImageFont
+        except Exception:
+            QMessageBox.warning(self, 'Pillow missing', 'Pillow not installed; cannot generate image.')
+            return False
+        W, H = 384, 120
+        img = Image.new('RGB', (W, H), color=bg_rgb)
+        draw = ImageDraw.Draw(img)
+        try:
+            font = ImageFont.truetype('DejaVuSans-Bold.ttf', 72)
+        except Exception:
+            font = ImageFont.load_default()
+        try:
+            bbox = draw.textbbox((0, 0), text, font=font)
+            tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        except Exception:
+            tw, th = draw.textsize(text, font=font)
+        x = (W - tw) / 2
+        y = (H - th) / 2
+        draw.text((x, y), text, fill=fg_rgb, font=font)
+        from pathlib import Path
+        logos_dir = Path('templates/logos')
+        logos_dir.mkdir(parents=True, exist_ok=True)
+        out_path = logos_dir / filename
+        img.save(str(out_path))
+        company_name = self.company_combo.currentText()
+        ok = self.template_manager.save_logo_file(company_name, filename)
+        if ok:
+            if self.current_template:
+                self.current_template.logo = ''
+                self.current_template.logo_image = str(out_path)
+            self.update_preview_force()
+            QMessageBox.information(self, 'OK', f'Generated logo set for {company_name}.')
+            return True
+        else:
+            QMessageBox.warning(self, 'Error', 'Failed to update template with new logo.')
+            return False
+
+    def generate_tokmanni_logo(self):
+        # Tokmanni: white text on deep red background
+        self._generate_banner_logo('TOKMANNI', (200, 0, 0), (255, 255, 255), 'tokmanni_auto.png')
+
+    def generate_motonet_logo(self):
+        # Motonet: white text on red background
+        self._generate_banner_logo('MOTONET', (180, 0, 0), (255, 255, 255), 'motonet_auto.png')
+
+    # --- Company info fetching ---
+    def fetch_company_info(self):
+        name = self.company_combo.currentText()
+        if not name or not self.current_template:
+            return
+        if not requests or not BeautifulSoup:
+            QMessageBox.warning(self, 'Missing deps', 'Install requests and beautifulsoup4 to use auto-fetch.')
+            return
+
+        self.fetch_info_btn.setEnabled(False)
+        self.fetch_info_btn.setText('Fetching…')
+
+        def worker():
+            try:
+                info = self._scrape_company_info(name)
+            except Exception as e:
+                info = None
+                logging.exception(e)
+            def finalize():
+                self.fetch_info_btn.setEnabled(True)
+                self.fetch_info_btn.setText('Fetch company info')
+                if not info:
+                    QMessageBox.warning(self, 'No data', 'Could not fetch company info.')
+                    return
+                # Update template in memory
+                self.current_template.company_info.update(info)
+                self.update_preview_force()
+                # Ask to persist
+                res = QMessageBox.question(self, 'Save', 'Save company info into template file?')
+                if res == QMessageBox.Yes:
+                    ok = self.template_manager.save_company_info(name, info)
+                    if ok:
+                        QMessageBox.information(self, 'Saved', 'Company info saved.')
+                    else:
+                        QMessageBox.warning(self, 'Error', 'Failed to save template.')
+            QTimer.singleShot(0, finalize)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _scrape_company_info(self, name: str) -> dict:
+        # Known domains for chains
+        domains = {
+            'puuilo': 'https://www.puuilo.fi',
+            'tokmanni': 'https://www.tokmanni.fi',
+            'motonet': 'https://www.motonet.fi',
+        }
+        base = None
+        for key, dom in domains.items():
+            if key in name.lower():
+                base = dom
+                break
+        candidates = []
+        if base:
+            candidates = [
+                base,
+                base + '/yhteystiedot',
+                base + '/asiakaspalvelu',
+                base + '/contact',
+                base + '/yritys',
+            ]
+        else:
+            # Fallback search via DuckDuckGo HTML to avoid JS
+            q = requests.utils.quote(f"{name} yhteystiedot")
+            candidates = [f"https://duckduckgo.com/html/?q={q}"]
+
+        headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64)'}
+        html = ''
+        url_found = None
+        for url in candidates:
+            try:
+                r = requests.get(url, headers=headers, timeout=10)
+                if r.status_code == 200:
+                    if 'duckduckgo.com' in url:
+                        soup = BeautifulSoup(r.text, 'html.parser')
+                        a = soup.select_one('a.result__a, a.result__url')
+                        if a and a.get('href'):
+                            url_found = a.get('href')
+                            rr = requests.get(url_found, headers=headers, timeout=10)
+                            if rr.status_code == 200:
+                                html = rr.text
+                                break
+                    else:
+                        html = r.text
+                        url_found = url
+                        break
+            except Exception:
+                continue
+        if not html:
+            return {}
+        soup = BeautifulSoup(html, 'html.parser')
+        text = ' '\
+            .join(x.get_text(" ", strip=True) for x in soup.find_all(['p','li','div','span']))
+        # Phone regex (Finnish)
+        m_phone = re.search(r'(\+358\s?\d[\d\s\-]{5,15}|0\d[\d\s\-]{5,15})', text)
+        phone = m_phone.group(0) if m_phone else ''
+        # Address: look for postal code pattern and preceding token
+        m_addr = re.search(r'([A-Za-zÅÄÖåäö0-9\-\. ]+?)\s(\d{5}\s+[A-Za-zÅÄÖåäö\- ]+)', text)
+        address = ''
+        city = ''
+        if m_addr:
+            address = m_addr.group(1).strip()
+            city = m_addr.group(2).strip()
+        info = {}
+        if address:
+            info['address'] = address
+        if city:
+            info['city'] = city
+        if phone:
+            info['phone'] = phone
+        return info
+
+    # --- Nearest store via OSM ---
+    def find_nearest_store(self):
+        query = (self.find_store_input.text() or '').strip()
+        name = self.company_combo.currentText()
+        if not query or not name or not requests:
+            return
+        self.find_store_btn.setEnabled(False)
+        self.find_store_btn.setText('Searching…')
+
+        def worker():
+            result = None
+            try:
+                loc = self._geocode(query)
+                if loc:
+                    # 1) Try chain-specific store list scraping
+                    scraped = self._scrape_chain_stores(name)
+                    if scraped:
+                        nearest = self._nearest_from_scraped(scraped, loc['lat'], loc['lon'])
+                        if nearest:
+                            result = nearest
+                    # 2) Fallback to OSM Overpass
+                    if not result:
+                        stores = self._overpass_find_stores(name, loc['lat'], loc['lon'])
+                        if stores:
+                            stores.sort(key=lambda s: s.get('dist', 1e9))
+                            result = stores[0]
+            except Exception as e:
+                logging.exception(e)
+
+            def finalize():
+                self.find_store_btn.setEnabled(True)
+                self.find_store_btn.setText('Find nearest store')
+                if not result:
+                    QMessageBox.warning(self, 'No match', 'Store not found nearby.')
+                    return
+                street = result.get('addr:street', '')
+                hn = result.get('addr:housenumber', '')
+                postcode = result.get('addr:postcode', '')
+                city = result.get('addr:city', '') or result.get('addr:town', '') or result.get('addr:village', '')
+                phone = result.get('contact:phone') or result.get('phone') or ''
+
+                address_line = (street + (' ' + hn if hn else '')).strip()
+                city_line = (' '.join([postcode, city])).strip()
+
+                info = {}
+                if address_line:
+                    info['address'] = address_line
+                if city_line:
+                    info['city'] = city_line
+                if phone:
+                    info['phone'] = phone
+
+                if not info:
+                    QMessageBox.information(self, 'Result', 'Found store, but no address tags in OSM.')
+                    return
+                # Update current template and preview
+                self.current_template.company_info.update(info)
+                self.update_preview_force()
+                # Offer save to template file
+                res = QMessageBox.question(self, 'Save', 'Save store info into template file?')
+                if res == QMessageBox.Yes:
+                    ok = self.template_manager.save_company_info(name, info)
+                    if ok:
+                        QMessageBox.information(self, 'Saved', 'Store info saved.')
+            QTimer.singleShot(0, finalize)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _geocode(self, text: str):
+        headers = {'User-Agent': 'AnomReceipt/1.0 (geocode)'}
+        params = {'format': 'json', 'q': text, 'limit': 1, 'accept-language': 'fi', 'countrycodes': 'fi'}
+        r = requests.get('https://nominatim.openstreetmap.org/search', params=params, headers=headers, timeout=10)
+        if r.status_code != 200:
+            return None
+        arr = r.json()
+        if not arr:
+            return None
+        return {'lat': float(arr[0]['lat']), 'lon': float(arr[0]['lon'])}
+
+    def _scrape_chain_stores(self, chain_name: str):
+        if not requests or not BeautifulSoup:
+            return []
+        chain = chain_name.lower()
+        sources = []
+        if 'puuilo' in chain:
+            sources = ['https://www.puuilo.fi/myymalat', 'https://www.puuilo.fi/yhteystiedot']
+        elif 'tokmanni' in chain:
+            sources = ['https://www.tokmanni.fi/myymalat', 'https://www.tokmanni.fi/yhteystiedot']
+        elif 'motonet' in chain:
+            sources = ['https://www.motonet.fi/kaupat', 'https://www.motonet.fi/yritys']
+        headers = {'User-Agent': 'AnomReceipt/1.0 (store-scrape)'}
+        stores = []
+        for url in sources:
+            try:
+                r = requests.get(url, headers=headers, timeout=12)
+                if r.status_code != 200:
+                    continue
+                soup = BeautifulSoup(r.text, 'html.parser')
+                text = '\n'.join(x.get_text(' ', strip=True) for x in soup.find_all(['p','li','div','span','a']))
+                # Very simple pattern: lines containing Finnish postal code
+                matches = re.findall(r'([A-Za-zÅÄÖåäö0-9\-\. ]+?)\s(\d{5})\s+([A-Za-zÅÄÖåäö\- ]+)', text)
+                for m in matches:
+                    street = m[0].strip()
+                    postcode = m[1].strip()
+                    city = m[2].strip()
+                    # Try to find a phone near match
+                    phone_match = re.search(r'(\+358\s?\d[\d\s\-]{5,15}|0\d[\d\s\-]{5,15})', text)
+                    phone = phone_match.group(0) if phone_match else ''
+                    stores.append({'addr:street': street, 'addr:postcode': postcode, 'addr:city': city, 'phone': phone})
+                if stores:
+                    break
+            except Exception:
+                continue
+        return stores
+
+    def _nearest_from_scraped(self, stores, lat, lon):
+        # Geocode at most 8 stores to keep usage light
+        best = None
+        headers = {'User-Agent': 'AnomReceipt/1.0 (geocode)'}
+        for s in stores[:8]:
+            addr = (s.get('addr:street') or '')
+            pc = s.get('addr:postcode') or ''
+            city = s.get('addr:city') or ''
+            q = ' '.join(filter(None, [addr, pc, city, 'Suomi']))
+            try:
+                r = requests.get('https://nominatim.openstreetmap.org/search', params={'format':'json','q':q,'limit':1,'countrycodes':'fi'}, headers=headers, timeout=10)
+                if r.status_code != 200:
+                    continue
+                arr = r.json()
+                if not arr:
+                    continue
+                slat, slon = float(arr[0]['lat']), float(arr[0]['lon'])
+                dist = self._haversine(lat, lon, slat, slon)
+                t = dict(s)
+                t['dist'] = dist
+                if not best or dist < best.get('dist', 1e9):
+                    best = t
+            except Exception:
+                continue
+        return best
+
+    def _overpass_find_stores(self, chain_name: str, lat: float, lon: float):
+        headers = {'User-Agent': 'AnomReceipt/1.0 (overpass)'}
+        safe = chain_name.replace('"', '\\"')
+        radius = 50000  # 50km
+        query = f"""
+        [out:json][timeout:25];
+        (
+          node["name"~"{safe}",i](around:{radius},{lat},{lon});
+          way["name"~"{safe}",i](around:{radius},{lat},{lon});
+          relation["name"~"{safe}",i](around:{radius},{lat},{lon});
+        );
+        out center tags;
+        """
+        endpoints = [
+            'https://overpass-api.de/api/interpreter',
+            'https://overpass.kumi.systems/api/interpreter',
+            'https://overpass.openstreetmap.ru/api/interpreter'
+        ]
+        data = None
+        for ep in endpoints:
+            try:
+                r = requests.post(ep, data=query.encode('utf-8'), headers=headers, timeout=15)
+                if r.status_code == 200:
+                    data = r.json()
+                    break
+            except requests.exceptions.RequestException:
+                continue
+        if not data:
+            return []
+        elems = data.get('elements', [])
+        stores = []
+        for e in elems:
+            tags = e.get('tags', {})
+            if not tags:
+                continue
+            # Use center for ways/relations
+            clat = e.get('lat') or (e.get('center') or {}).get('lat')
+            clon = e.get('lon') or (e.get('center') or {}).get('lon')
+            if not (clat and clon):
+                continue
+            dist = self._haversine(lat, lon, float(clat), float(clon))
+            # Keep only stores matching chain brand strongly when possible
+            nm = (tags.get('brand') or tags.get('name') or '').lower()
+            if any(k in nm for k in chain_name.lower().split()):
+                tags_copy = dict(tags)
+                tags_copy['dist'] = dist
+                stores.append(tags_copy)
+        return stores
+
+    def _haversine(self, lat1, lon1, lat2, lon2):
+        R = 6371000.0
+        phi1 = math.radians(lat1)
+        phi2 = math.radians(lat2)
+        dphi = math.radians(lat2 - lat1)
+        dlambda = math.radians(lon2 - lon1)
+        a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+        return R * c
         
     def create_right_panel(self):
         """Create the right preview panel"""
@@ -264,6 +701,31 @@ class MainWindow(QMainWindow):
         self.preview_text.setLineWrapMode(QTextEdit.NoWrap)
         
         layout.addWidget(self.preview_text)
+
+        # Editing toolbar below preview
+        tool_row = QHBoxLayout()
+        self.edit_toggle = QPushButton('Edit')
+        self.edit_toggle.setCheckable(True)
+        self.edit_toggle.toggled.connect(lambda v: self.preview_text.setReadOnly(not v))
+        tool_row.addWidget(self.edit_toggle)
+
+        self.regen_btn = QPushButton('Päivitä kuitti')
+        self.regen_btn.clicked.connect(self.update_preview_force)
+        tool_row.addWidget(self.regen_btn)
+
+        self.save_btn = QPushButton('Save preview')
+        self.save_btn.clicked.connect(self.save_preview)
+        tool_row.addWidget(self.save_btn)
+
+        self.load_btn = QPushButton('Load preview')
+        self.load_btn.clicked.connect(self.load_preview)
+        tool_row.addWidget(self.load_btn)
+
+        tool_row.addStretch()
+        layout.addLayout(tool_row)
+
+        # Default to editable preview for freeform editing
+        self.edit_toggle.setChecked(True)
         
         panel.setLayout(layout)
         return panel
@@ -282,6 +744,13 @@ class MainWindow(QMainWindow):
     def change_company(self, company_name):
         """Change the current company template"""
         self.current_template = self.template_manager.get_template(company_name)
+        low = (company_name or '').lower()
+        if hasattr(self, 'gen_logo_puuilo_btn'):
+            self.gen_logo_puuilo_btn.setVisible('puuilo' in low)
+        if hasattr(self, 'gen_logo_tokmanni_btn'):
+            self.gen_logo_tokmanni_btn.setVisible('tokmanni' in low)
+        if hasattr(self, 'gen_logo_motonet_btn'):
+            self.gen_logo_motonet_btn.setVisible('motonet' in low)
         self.update_preview()
         
     def change_ui_language(self, language):
@@ -367,6 +836,13 @@ class MainWindow(QMainWindow):
         
     def update_preview(self):
         """Update the receipt preview"""
+        # If user is editing manually, do not overwrite contents.
+        if hasattr(self, 'edit_toggle') and self.edit_toggle.isChecked():
+            return
+        return self.update_preview_force()
+
+    def update_preview_force(self):
+        """Regenerate preview from current form data regardless of edit mode."""
         if not self.current_template:
             self.preview_text.setPlainText("Please select a company template")
             return
@@ -387,7 +863,10 @@ class MainWindow(QMainWindow):
         # Format preview text
         preview = []
         
-        # Logo
+        # Logo handling (PNG image + optional ASCII)
+        img_html = ''
+        if receipt_data.get('logo_image'):
+            img_html = f"<div style='text-align:center'><img src='file://{receipt_data['logo_image']}' style='max-width:100%;height:auto' /></div>\n"
         if receipt_data.get('logo'):
             preview.append(receipt_data['logo'])
             preview.append('')
@@ -407,17 +886,18 @@ class MainWindow(QMainWindow):
                 name = item.get('name', '')
                 price = item.get('price', '')
                 qty = item.get('qty', '')
-                
-                if qty:
-                    line = f"{qty}x {name}"
+
+                base = f"{qty}x {name}" if qty else name
+                # Ensure price is right-aligned at configured width. If content too long,
+                # truncate left part to keep the price visible.
+                if receipt_width > len(price):
+                    left_space = receipt_width - len(price)
+                    left = base[:left_space].ljust(left_space)
+                    line = left + price
                 else:
-                    line = name
-                    
-                spaces = receipt_width - len(line) - len(price)
-                if spaces > 0:
-                    line += ' ' * spaces
-                line += price
-                
+                    # Fallback: just cut to width
+                    line = (base + ' ' + price)[:receipt_width]
+
                 preview.append(line)
                 
         preview.append(separator_line)
@@ -426,8 +906,78 @@ class MainWindow(QMainWindow):
         if receipt_data.get('footer'):
             for line in receipt_data['footer']:
                 preview.append(line)
+        
+        # Visa transaction details if selected
+        if self.payment_combo.currentText().lower() == 'visa':
+            from random import randint, choice
+            last4 = f"{randint(0, 9999):04d}"
+            auth = ''.join(choice('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ') for _ in range(6))
+            trans_id = f"{randint(10000000, 99999999)}"
+            term_id = f"T{randint(100000, 999999)}"
+            rrn = ''.join(choice('0123456789') for _ in range(12))
+            stan = ''.join(choice('0123456789') for _ in range(6))
+            mid = ''.join(choice('0123456789') for _ in range(15))
+            expiry = f"{randint(1,12):02d}/{randint(24,29):02d}"
+            entry = choice(["CHIP", "CTLS"])  # chip/contactless
+            ac = ''.join(choice('0123456789ABCDEF') for _ in range(16))
+            preview.extend([
+                '',
+                f"Card: VISA",
+                f"PAN: **** **** **** {last4}",
+                f"Expiry: {expiry}",
+                f"Auth: {auth}",
+                f"AID: A0000000031010",
+                f"App: VISA CREDIT",
+                f"TVR: 0000000000",
+                f"TSI: E800",
+                f"Entry: {entry}",
+                f"AC: {ac}",
+                f"RRN: {rrn}",
+                f"STAN: {stan}",
+                f"TransID: {trans_id}",
+                f"TID: {term_id}",
+                f"MID: {mid}",
+            ])
                 
-        self.preview_text.setPlainText('\n'.join(preview))
+        # Wrap all lines to width
+        wrapped = []
+        for ln in preview:
+            if len(ln) <= receipt_width:
+                wrapped.append(ln)
+            else:
+                i = 0
+                while i < len(ln):
+                    wrapped.append(ln[i:i+receipt_width])
+                    i += receipt_width
+
+        # Render HTML with image + preformatted text for alignment
+        escaped = '\n'.join(wrapped).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        html = img_html + f"<pre style=\"font-family:'Courier New',monospace; font-size:12px; white-space: pre;\">{escaped}</pre>"
+        self.preview_text.setHtml(html)
+
+    def save_preview(self):
+        from PyQt5.QtWidgets import QFileDialog, QMessageBox
+        path, _ = QFileDialog.getSaveFileName(self, 'Save preview', '', 'Text Files (*.txt);;All Files (*)')
+        if not path:
+            return
+        try:
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(self.preview_text.toPlainText())
+        except Exception as e:
+            QMessageBox.critical(self, 'Error', f'Failed to save: {e}')
+
+    def load_preview(self):
+        from PyQt5.QtWidgets import QFileDialog, QMessageBox
+        path, _ = QFileDialog.getOpenFileName(self, 'Load preview', '', 'Text Files (*.txt);;All Files (*)')
+        if not path:
+            return
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                self.preview_text.setPlainText(f.read())
+            # enter edit mode so we don't auto-overwrite
+            self.edit_toggle.setChecked(True)
+        except Exception as e:
+            QMessageBox.critical(self, 'Error', f'Failed to load: {e}')
         
     def connect_usb(self):
         """Connect to USB printer"""
@@ -481,22 +1031,48 @@ class MainWindow(QMainWindow):
                               "Please select a company template")
             return
             
+        # If user is editing preview, print exactly what's shown
+        if hasattr(self, 'edit_toggle') and self.edit_toggle.isChecked():
+            content = self.preview_text.toPlainText()
+            ok = True
+            if getattr(self.current_template, 'logo_image', None):
+                ok = self.printer.print_image(self.current_template.logo_image)
+                if ok:
+                    self.printer.feed_lines(1)
+            if ok:
+                for line in content.split('\n'):
+                    if not self.printer.print_text(line + '\n'):
+                        ok = False
+                        break
+            if ok and self.printer.is_connected():
+                self.printer.feed_lines(3)
+                self.printer.cut_paper()
+            if ok:
+                QMessageBox.information(self, self.translator.translate('success'),
+                                      self.translator.translate('print_success'))
+            else:
+                QMessageBox.warning(self, self.translator.translate('error'),
+                                  self.translator.translate('print_error'))
+            return
+
+        # Otherwise generate from current form
         items = self.get_items_from_table()
         if not items:
             QMessageBox.warning(self, self.translator.translate('error'),
                               "Please add at least one item")
             return
-            
+
         payment_method = self.payment_combo.currentText()
         receipt_language = self.receipt_lang_combo.currentText()
-        
+
         receipt_data = self.current_template.generate_receipt(
             items=items,
             payment_method=payment_method,
             language=receipt_language
         )
-        
-        if self.printer.print_receipt(receipt_data):
+
+        width = self.settings.get('receipt_width', 48)
+        if self.printer.print_receipt(receipt_data, width=width):
             QMessageBox.information(self, self.translator.translate('success'),
                                   self.translator.translate('print_success'))
         else:

@@ -298,17 +298,22 @@ class EpsonTM70Printer:
                         logger.error(f"Image print failed: {e}")
                     continue
                 text = seg
-                text_type = ''
-                if bold:
-                    text_type += 'B'
-                if italic:
-                    text_type += 'I'
-                if text_type == '':
-                    text_type = None
                 try:
-                    self.printer.set(font='a', width=scale, height=scale, text_type=text_type)
+                    # Try explicit bold/italic flags
+                    self.printer.set(font='a', width=scale, height=scale, bold=bool(bold), italic=bool(italic))
                 except Exception:
-                    self.printer.set(font='a', width=scale, height=scale)
+                    try:
+                        # Some backends support text_type string
+                        text_type = ''
+                        if bold:
+                            text_type += 'B'
+                        if italic:
+                            text_type += 'I'
+                        if text_type == '':
+                            text_type = None
+                        self.printer.set(font='a', width=scale, height=scale, text_type=text_type)
+                    except Exception:
+                        self.printer.set(font='a', width=scale, height=scale)
                 self.printer.text(text)
 
             # Cut paper

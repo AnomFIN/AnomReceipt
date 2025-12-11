@@ -14,6 +14,10 @@ TRANSLATIONS = {
         "customer_name": "Asiakkaan nimi",
         "reference": "Viite",
         "invoice_number": "Laskun numero",
+        "store_number": "Myymälänumero",
+        "register_id": "Kassa",
+        "cashier_name": "Kassahenkilö",
+        "receipt_id": "Kuitti-ID",
         "date_time": "Päivämäärä ja aika",
         "preview": "Esikatselu",
         "print": "Tulosta kuitti",
@@ -49,6 +53,8 @@ TRANSLATIONS = {
         "bigger": "Suurempi fontti",
         "smaller": "Pienempi fontti",
         "regenerate": "Päivitä datasta",
+        "save_preview": "Tallenna esikatselu",
+        "load_preview": "Lataa esikatselu",
         
         # Settings dialog
         "settings_title": "Asetukset",
@@ -95,6 +101,10 @@ TRANSLATIONS = {
         "customer_name": "Customer name",
         "reference": "Reference",
         "invoice_number": "Invoice number",
+        "store_number": "Store number",
+        "register_id": "Register",
+        "cashier_name": "Cashier",
+        "receipt_id": "Receipt ID",
         "date_time": "Date and time",
         "preview": "Preview",
         "print": "Print receipt",
@@ -130,6 +140,8 @@ TRANSLATIONS = {
         "bigger": "Font bigger",
         "smaller": "Font smaller",
         "regenerate": "Regenerate from data",
+        "save_preview": "Save preview",
+        "load_preview": "Load preview",
         
         # Settings dialog
         "settings_title": "Settings",
