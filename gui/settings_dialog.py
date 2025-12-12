@@ -86,6 +86,12 @@ class SettingsDialog(QDialog):
         self.default_language.addItem("Finnish", "FI")
         self.default_language.addItem("English", "EN")
         defaults_layout.addRow(self.i18n.t("default_language"), self.default_language)
+
+        # Receipt width (characters)
+        self.receipt_width = QSpinBox()
+        self.receipt_width.setRange(20, 80)
+        self.receipt_width.setValue(42)
+        defaults_layout.addRow("Receipt width (chars)", self.receipt_width)
         
         defaults_group.setLayout(defaults_layout)
         layout.addWidget(defaults_group)
@@ -135,6 +141,8 @@ class SettingsDialog(QDialog):
         index = self.default_language.findData(lang)
         if index >= 0:
             self.default_language.setCurrentIndex(index)
+        # Receipt width
+        self.receipt_width.setValue(self.settings.get_receipt_width())
     
     def on_connection_type_changed(self):
         """Handle connection type change."""
@@ -201,6 +209,8 @@ class SettingsDialog(QDialog):
         # Save default language
         language = self.default_language.currentData()
         self.settings.set_default_language(language)
+        # Save receipt width
+        self.settings.set_receipt_width(self.receipt_width.value())
         
         # Emit signal
         self.settings_changed.emit()

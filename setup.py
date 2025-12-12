@@ -35,10 +35,14 @@ setup(
         "PyYAML>=6.0",
         "python-escpos>=3.0",
         "pillow>=10.3.0",
+        "requests>=2.32.0",
+        "beautifulsoup4>=4.12.0",
+        "pyusb>=1.2.1",
     ],
     entry_points={
         "console_scripts": [
             "anomreceipt=main:main",
+            "kuittikones=main:main",
         ],
     },
     include_package_data=True,

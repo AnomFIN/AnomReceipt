@@ -24,6 +24,12 @@ DEFAULT_SETTINGS = {
     "ui": {
         "window_width": 1200,
         "window_height": 800
+    },
+    "receipt": {
+        "width": 42  # characters per line
+    },
+    "counters": {
+        "receipt": {}
     }
 }
 
@@ -121,3 +127,39 @@ class Settings:
         """Set default language."""
         self.set("defaults.language", language)
         self.save()
+
+    # Receipt settings helpers
+    def get_receipt_width(self) -> int:
+        return int(self.get("receipt.width", 42))
+
+    def set_receipt_width(self, width: int):
+        self.set("receipt.width", int(width))
+        self.save()
+
+    # --- Receipt counters ---
+    def _receipt_counter_key(self, company: str) -> str:
+        return company or "__default__"
+
+    def peek_next_receipt_id(self, company: str) -> str:
+        from datetime import datetime
+        today = datetime.now().strftime("%Y%m%d")
+        counters = self.settings.setdefault("counters", {}).setdefault("receipt", {})
+        key = self._receipt_counter_key(company)
+        entry = counters.get(key, {"date": today, "counter": 0})
+        seq = entry["counter"] if entry.get("date") == today else 0
+        next_num = seq + 1
+        return f"{today}-{next_num:04d}"
+
+    def commit_next_receipt_id(self, company: str) -> str:
+        from datetime import datetime
+        today = datetime.now().strftime("%Y%m%d")
+        counters = self.settings.setdefault("counters", {}).setdefault("receipt", {})
+        key = self._receipt_counter_key(company)
+        entry = counters.get(key)
+        if not entry or entry.get("date") != today:
+            entry = {"date": today, "counter": 0}
+        entry["counter"] = int(entry.get("counter", 0)) + 1
+        entry["date"] = today
+        counters[key] = entry
+        self.save()
+        return f"{today}-{entry['counter']:04d}"

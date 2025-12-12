@@ -23,7 +23,10 @@ class ESCPOSPrinter:
         Default IDs are for Epson TM-T70II
         """
         try:
-            self.printer = Usb(vendor_id, product_id)
+            try:
+                self.printer = Usb(vendor_id, product_id, profile="TM-T88III")
+            except TypeError:
+                self.printer = Usb(vendor_id, product_id)
             self.connection_type = "USB"
             logger.info(f"Connected to USB printer (VID: {hex(vendor_id)}, PID: {hex(product_id)})")
             return True
@@ -97,6 +100,8 @@ class ESCPOSPrinter:
             return True
         except Exception as e:
             logger.error(f"Error printing text: {e}")
+            # Invalidate device to avoid further errors in chain
+            self.printer = None
             return False
             
     def print_line(self, char='-', length=48):
@@ -104,19 +109,76 @@ class ESCPOSPrinter:
         if self.is_connected():
             self.print_text(char * length + '\n')
             
-    def print_logo(self, logo_text):
+    def print_logo(self, logo_text) -> bool:
         """Print ASCII logo"""
-        if self.is_connected():
+        if not self.is_connected():
+            return False
+        try:
             self.printer.set(align='center')
             for line in logo_text.split('\n'):
-                self.print_text(line + '\n')
+                if not self.print_text(line + '\n'):
+                    return False
             self.printer.set(align='left')
+            return True
+        except Exception as e:
+            logger.error(f"Error printing logo: {e}")
+            self.printer = None
+            return False
+
+    def _profile_media_width(self) -> int:
+        try:
+            prof = getattr(self.printer, 'profile', None)
+            if prof is not None:
+                data = getattr(prof, 'profile_data', None) or {}
+                media = data.get('media') or {}
+                width_px = (media.get('width') or {}).get('pixel')
+                if isinstance(width_px, int) and width_px > 0:
+                    return width_px
+        except Exception:
+            pass
+        return 384
+
+    def print_image(self, image_path: str):
+        """Print a raster image (PNG/JPEG). Uses Pillow to ensure compatibility."""
+        if not self.is_connected():
+            logger.warning("Cannot print: not connected")
+            return False
+        try:
+            from PIL import Image
+            img = Image.open(image_path)
+            target_w = self._profile_media_width()
+            if img.width > target_w:
+                ratio = target_w / float(img.width)
+                new_h = max(1, int(img.height * ratio))
+                img = img.resize((int(target_w), new_h), Image.LANCZOS)
+            img = img.convert('1')
+            try:
+                self.printer.set(align='center')
+            except Exception:
+                pass
+            try:
+                self.printer.image(img)
+            except Exception:
+                self.printer.image(image_path)
+            try:
+                self.printer.set(align='left')
+            except Exception:
+                pass
+            return True
+        except Exception as e:
+            logger.error(f"Error printing image: {e}")
+            return False
             
     def feed_lines(self, lines=1):
         """Feed paper by specified number of lines"""
         if self.is_connected():
             for _ in range(lines):
-                self.printer.text('\n')
+                try:
+                    self.printer.text('\n')
+                except Exception as e:
+                    logger.error(f"Error feeding lines: {e}")
+                    self.printer = None
+                    break
                 
     def cut_paper(self, partial=True):
         """Cut paper (partial cut by default)"""
@@ -132,7 +194,7 @@ class ESCPOSPrinter:
                 return False
         return False
         
-    def print_receipt(self, receipt_data):
+    def print_receipt(self, receipt_data, width: int = 48):
         """
         Print a complete receipt from structured data
         
@@ -149,16 +211,33 @@ class ESCPOSPrinter:
             return False
             
         try:
-            # Print logo if present
+            # Print logo image if present
+            if receipt_data.get('logo_image') and self.is_connected():
+                if not self.print_image(receipt_data['logo_image']):
+                    return False
+                self.feed_lines(1)
+            # Print ASCII logo if present
             if receipt_data.get('logo'):
-                self.print_logo(receipt_data['logo'])
+                if not self.print_logo(receipt_data['logo']):
+                    return False
                 self.feed_lines(1)
                 
+            # Utility to wrap a line to chunks of given width
+            def wrap_line(s: str, w: int):
+                out = []
+                i = 0
+                while i < len(s):
+                    out.append(s[i:i+w])
+                    i += w
+                return out or ['']
+
             # Print header
             if receipt_data.get('header'):
                 for line in receipt_data['header']:
-                    self.print_text(line + '\n', align='center', bold=True)
-                self.print_line()
+                    for chunk in wrap_line(line, width):
+                        if not self.print_text(chunk + '\n', align='center', bold=True):
+                            return False
+                self.print_line(length=width)
                 
             # Print items
             if receipt_data.get('items'):
@@ -166,31 +245,32 @@ class ESCPOSPrinter:
                     name = item.get('name', '')
                     price = item.get('price', '')
                     qty = item.get('qty', '')
-                    
-                    if qty:
-                        line = f"{qty}x {name}"
+                    base = f"{qty}x {name}" if qty else name
+                    # Right-align price at the end; truncate left if needed
+                    if width > len(price):
+                        left_space = width - len(price)
+                        left = base[:left_space].ljust(left_space)
+                        line = left + price
                     else:
-                        line = name
-                        
-                    # Format line with price on the right
-                    spaces = 48 - len(line) - len(price)
-                    if spaces > 0:
-                        line += ' ' * spaces
-                    line += price
-                    
-                    self.print_text(line + '\n')
+                        line = (base + ' ' + price)[:width]
+
+                    if not self.print_text(line + '\n'):
+                        return False
                     
                 self.print_line()
                 
             # Print footer
             if receipt_data.get('footer'):
                 for line in receipt_data['footer']:
-                    self.print_text(line + '\n')
+                    for chunk in wrap_line(line, width):
+                        if not self.print_text(chunk + '\n'):
+                            return False
                     
             # Feed and cut
-            self.feed_lines(3)
-            if receipt_data.get('cut', True):
-                self.cut_paper()
+            if self.is_connected():
+                self.feed_lines(3)
+                if receipt_data.get('cut', True):
+                    self.cut_paper()
                 
             return True
         except Exception as e:

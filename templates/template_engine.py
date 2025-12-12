@@ -12,6 +12,27 @@ logger = logging.getLogger(__name__)
 # Template paths
 LOGOS_DIR = os.path.join("templates", "logos")
 
+def get_company_logo(company: CompanyProfile):
+    """Resolve company logo path and type.
+    Returns (path, type) where type in {'txt','png'} or (None, None) if not found.
+    """
+    # Explicit file set
+    if company.logo_file:
+        path = os.path.join(LOGOS_DIR, company.logo_file)
+        if os.path.exists(path):
+            ext = os.path.splitext(path)[1].lower()
+            if ext == '.txt':
+                return path, 'txt'
+            if ext == '.png':
+                return path, 'png'
+    # Try default by company safe name
+    safe = ''.join(c if c.isalnum() else '_' for c in company.name.lower())
+    for ext in ('.png', '.txt'):
+        path = os.path.join(LOGOS_DIR, safe + ext)
+        if os.path.exists(path):
+            return path, ext.lstrip('.')
+    return None, None
+
 
 class ReceiptTemplate:
     """Base class for receipt templates."""
@@ -38,21 +59,18 @@ class ReceiptTemplate:
         """Create a horizontal line."""
         return char * self.width
     
-    def _load_logo(self, logo_file: Optional[str]) -> list:
-        """Load ASCII logo from file."""
-        if not logo_file:
+    def _load_logo(self, company: CompanyProfile) -> list:
+        """Load ASCII logo lines if present. PNGs are handled in preview/printer."""
+        path, ltype = get_company_logo(company)
+        if not path:
             return []
-        
-        logo_path = os.path.join(LOGOS_DIR, logo_file)
-        if not os.path.exists(logo_path):
-            logger.debug(f"Logo file not found: {logo_path}")
+        if ltype == 'png':
             return []
-        
         try:
-            with open(logo_path, 'r', encoding='utf-8') as f:
+            with open(path, 'r', encoding='utf-8') as f:
                 return [line.rstrip() for line in f.readlines()]
         except Exception as e:
-            logger.error(f"Failed to load logo {logo_file}: {e}")
+            logger.error(f"Failed to load logo {path}: {e}")
             return []
     
     def render(self, data: ReceiptData) -> str:
@@ -68,7 +86,7 @@ class ReceiptTemplate:
         lines = []
         
         # Logo
-        logo_lines = self._load_logo(data.company.logo_file)
+        logo_lines = self._load_logo(data.company)
         for logo_line in logo_lines:
             lines.append(self._center(logo_line))
         if logo_lines:
@@ -108,6 +126,17 @@ class ReceiptTemplate:
         vat_label = "Y-tunnus" if data.language == "FI" else "VAT ID"
         lines.append(self._center(f"{vat_label}: {company.vat_id}"))
         
+        # Store/pos details
+        if data.store_number:
+            lbl = "Myymälä" if data.language == "FI" else "Store"
+            lines.append(self._center(f"{lbl}: {data.store_number}"))
+        if data.register_id:
+            lbl = "Kassa" if data.language == "FI" else "Register"
+            lines.append(self._center(f"{lbl}: {data.register_id}"))
+        if data.cashier_name:
+            lbl = "Kassahenkilö" if data.language == "FI" else "Cashier"
+            lines.append(self._center(f"{lbl}: {data.cashier_name}"))
+        
         lines.append(self._line("="))
         
         # Receipt info
@@ -121,6 +150,10 @@ class ReceiptTemplate:
         if data.reference_number:
             ref_label = "Viite" if data.language == "FI" else "Reference"
             lines.append(self._left_right(f"{ref_label}:", data.reference_number))
+        
+        if data.receipt_id:
+            lbl = "Kuitti-ID" if data.language == "FI" else "Receipt ID"
+            lines.append(self._left_right(f"{lbl}:", data.receipt_id))
         
         if data.customer_name:
             cust_label = "Asiakas" if data.language == "FI" else "Customer"
@@ -190,6 +223,31 @@ class ReceiptTemplate:
         payment_label = "Maksutapa" if data.language == "FI" else "Payment method"
         lines.append(self._left_right(f"{payment_label}:", data.payment_method))
         
+        # Optional payment details (e.g., card details)
+        if data.payment_details:
+            details = data.payment_details
+            # Standard ordering
+            mapping = [
+                ("card_type", "Card"),
+                ("pan_masked", "PAN"),
+                ("expiry", "Expiry"),
+                ("auth_code", "Auth"),
+                ("aid", "AID"),
+                ("app_label", "App"),
+                ("tvr", "TVR"),
+                ("tsi", "TSI"),
+                ("entry_mode", "Entry"),
+                ("app_cryptogram", "AC"),
+                ("rrn", "RRN"),
+                ("stan", "STAN"),
+                ("transaction_id", "TransID"),
+                ("terminal_id", "TID"),
+                ("merchant_id", "MID"),
+            ]
+            for key, label in mapping:
+                if details.get(key):
+                    lines.append(self._left_right(f"{label}:", str(details[key])))
+        
         lines.append("")
         
         # Custom footer or company default
@@ -203,5 +261,13 @@ class ReceiptTemplate:
             footer_text = "Kiitos käynnistä!" if data.language == "FI" else "Thank you for your visit!"
         
         lines.append(self._center(footer_text))
+        
+        # Chain campaign text
+        if data.language == "FI" and data.company.default_campaign_fi:
+            lines.append("")
+            lines.append(self._center(data.company.default_campaign_fi))
+        if data.language == "EN" and data.company.default_campaign_en:
+            lines.append("")
+            lines.append(self._center(data.company.default_campaign_en))
         
         return lines

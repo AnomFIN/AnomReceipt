@@ -14,6 +14,10 @@ TRANSLATIONS = {
         "customer_name": "Asiakkaan nimi",
         "reference": "Viite",
         "invoice_number": "Laskun numero",
+        "store_number": "Myymälänumero",
+        "register_id": "Kassa",
+        "cashier_name": "Kassahenkilö",
+        "receipt_id": "Kuitti-ID",
         "date_time": "Päivämäärä ja aika",
         "preview": "Esikatselu",
         "print": "Tulosta kuitti",
@@ -38,9 +42,19 @@ TRANSLATIONS = {
         # Payment methods
         "cash": "Käteinen",
         "card": "Kortti",
+        "visa": "Visa",
         "mobilepay": "MobilePay",
         "bank_transfer": "Pankkisiirto",
         "other": "Muu",
+        # Preview editing
+        "edit_preview": "Muokkaa esikatselua",
+        "bold": "Lihavoi",
+        "italic": "Kursivoi",
+        "bigger": "Suurempi fontti",
+        "smaller": "Pienempi fontti",
+        "regenerate": "Päivitä datasta",
+        "save_preview": "Tallenna esikatselu",
+        "load_preview": "Lataa esikatselu",
         
         # Settings dialog
         "settings_title": "Asetukset",
@@ -65,9 +79,8 @@ TRANSLATIONS = {
         "import_logo_image": "Tuo kuva logoksi",
         "save_logo": "Tallenna logo",
         "clear_logo": "Tyhjennä",
-        "bold": "Lihavointi",
-        "font_size": "Fonttikoko",
-
+        "import_png_logo": "Tuo PNG-logo",
+        
         # Messages
         "print_success": "Kuitti tulostettu onnistuneesti",
         "print_error": "Virhe tulostuksessa",
@@ -89,6 +102,10 @@ TRANSLATIONS = {
         "customer_name": "Customer name",
         "reference": "Reference",
         "invoice_number": "Invoice number",
+        "store_number": "Store number",
+        "register_id": "Register",
+        "cashier_name": "Cashier",
+        "receipt_id": "Receipt ID",
         "date_time": "Date and time",
         "preview": "Preview",
         "print": "Print receipt",
@@ -113,9 +130,19 @@ TRANSLATIONS = {
         # Payment methods
         "cash": "Cash",
         "card": "Card",
+        "visa": "Visa",
         "mobilepay": "MobilePay",
         "bank_transfer": "Bank transfer",
         "other": "Other",
+        # Preview editing
+        "edit_preview": "Edit preview",
+        "bold": "Bold",
+        "italic": "Italic",
+        "bigger": "Font bigger",
+        "smaller": "Font smaller",
+        "regenerate": "Regenerate from data",
+        "save_preview": "Save preview",
+        "load_preview": "Load preview",
         
         # Settings dialog
         "settings_title": "Settings",
@@ -140,9 +167,8 @@ TRANSLATIONS = {
         "import_logo_image": "Import logo image",
         "save_logo": "Save logo",
         "clear_logo": "Clear",
-        "bold": "Bold",
-        "font_size": "Font size",
-
+        "import_png_logo": "Import PNG logo",
+        
         # Messages
         "print_success": "Receipt printed successfully",
         "print_error": "Printing error",
