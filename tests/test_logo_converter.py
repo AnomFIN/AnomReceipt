@@ -6,8 +6,8 @@ from PIL import Image
 from templates.logo_converter import LogoConversionError, image_to_ascii
 
 
-def _create_test_image(path: str, color: int = 0):
-    image = Image.new("L", (10, 10), color=color)
+def _create_test_image(path: str, color: int = 0, width: int = 10, height: int = 10):
+    image = Image.new("L", (width, height), color=color)
     image.save(path)
 
 
@@ -64,8 +64,7 @@ def test_image_to_ascii_aspect_ratio_landscape(tmp_path):
     """Test aspect ratio calculation for landscape image."""
     img_path = tmp_path / "landscape.png"
     # Create a wide image (landscape)
-    img = Image.new("L", (100, 50), color=128)
-    img.save(img_path)
+    _create_test_image(img_path, color=128, width=100, height=50)
     
     ascii_art = image_to_ascii(str(img_path), width=20)
     lines = ascii_art.splitlines()
@@ -80,8 +79,7 @@ def test_image_to_ascii_aspect_ratio_portrait(tmp_path):
     """Test aspect ratio calculation for portrait image."""
     img_path = tmp_path / "portrait.png"
     # Create a tall image (portrait)
-    img = Image.new("L", (50, 100), color=128)
-    img.save(img_path)
+    _create_test_image(img_path, color=128, width=50, height=100)
     
     ascii_art = image_to_ascii(str(img_path), width=10)
     lines = ascii_art.splitlines()
@@ -96,8 +94,7 @@ def test_image_to_ascii_aspect_ratio_square(tmp_path):
     """Test aspect ratio calculation for square image."""
     img_path = tmp_path / "square.png"
     # Create a square image
-    img = Image.new("L", (100, 100), color=128)
-    img.save(img_path)
+    _create_test_image(img_path, color=128, width=100, height=100)
     
     ascii_art = image_to_ascii(str(img_path), width=20)
     lines = ascii_art.splitlines()
@@ -146,8 +143,12 @@ def test_image_to_ascii_character_mapping_mid_gray(tmp_path):
     charset = "@%#*+=-:. "
     ascii_art = image_to_ascii(str(img_path), width=10, charset=charset)
     
-    # Mid-gray (128) should map to middle characters
-    # With pixel value 128 and charset length 10: scale = 9/255, index = 128 * 9/255 = ~4.5 -> 4
-    # This corresponds to '+' at index 4
-    assert "+" in ascii_art
+    # Calculate expected character using the same formula as the source code
+    pixel_value = 128
+    scale = (len(charset) - 1) / 255
+    expected_index = int(pixel_value * scale)
+    expected_char = charset[expected_index]
+    
+    # Verify the expected character is in the ASCII art
+    assert expected_char in ascii_art
 
