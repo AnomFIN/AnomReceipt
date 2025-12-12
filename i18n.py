@@ -62,9 +62,12 @@ TRANSLATIONS = {
         "logo_text": "Logo (ASCII-taide)",
         "logo_preview": "Esikatselu",
         "load_logo": "Lataa logo",
+        "import_logo_image": "Tuo kuva logoksi",
         "save_logo": "Tallenna logo",
         "clear_logo": "Tyhjennä",
-        
+        "bold": "Lihavointi",
+        "font_size": "Fonttikoko",
+
         # Messages
         "print_success": "Kuitti tulostettu onnistuneesti",
         "print_error": "Virhe tulostuksessa",
@@ -134,9 +137,12 @@ TRANSLATIONS = {
         "logo_text": "Logo (ASCII art)",
         "logo_preview": "Preview",
         "load_logo": "Load logo",
+        "import_logo_image": "Import logo image",
         "save_logo": "Save logo",
         "clear_logo": "Clear",
-        
+        "bold": "Bold",
+        "font_size": "Font size",
+
         # Messages
         "print_success": "Receipt printed successfully",
         "print_error": "Printing error",

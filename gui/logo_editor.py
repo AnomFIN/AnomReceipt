@@ -4,14 +4,17 @@ ASCII logo editor dialog.
 import os
 import logging
 from PyQt5.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QTextEdit, 
-    QPushButton, QLabel, QFileDialog, QMessageBox
+    QDialog, QVBoxLayout, QHBoxLayout, QTextEdit,
+    QPushButton, QLabel, QFileDialog, QMessageBox, QToolButton, QSpinBox
 )
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt
 from i18n import get_i18n
+from templates.logo_converter import image_to_ascii, LogoConversionError
 
 logger = logging.getLogger(__name__)
+
+# Ship intelligence, not excuses.
 
 # Template paths
 LOGOS_DIR = os.path.join("templates", "logos")
@@ -32,7 +35,9 @@ class LogoEditorDialog(QDialog):
         self.company_name = company_name
         self.i18n = get_i18n()
         self.logo_file = None
-        
+        self.logo_width = 42
+        self._bold_enabled = False
+
         self.setup_ui()
         self.load_existing_logo()
     
@@ -40,13 +45,33 @@ class LogoEditorDialog(QDialog):
         """Setup the user interface."""
         self.setWindowTitle(self.i18n.t("logo_editor_title"))
         self.setMinimumSize(600, 500)
-        
+
         layout = QVBoxLayout()
-        
+
         # Instructions
         info_label = QLabel(self.i18n.t("logo_text"))
         layout.addWidget(info_label)
-        
+
+        formatting_bar = QHBoxLayout()
+
+        self.bold_btn = QToolButton()
+        self.bold_btn.setText(self.i18n.t("bold"))
+        self.bold_btn.setCheckable(True)
+        self.bold_btn.clicked.connect(self.toggle_bold)
+        formatting_bar.addWidget(self.bold_btn)
+
+        size_label = QLabel(self.i18n.t("font_size"))
+        formatting_bar.addWidget(size_label)
+
+        self.font_size_spin = QSpinBox()
+        self.font_size_spin.setRange(6, 32)
+        self.font_size_spin.setValue(10)
+        self.font_size_spin.valueChanged.connect(self.change_font_size)
+        formatting_bar.addWidget(self.font_size_spin)
+
+        formatting_bar.addStretch()
+        layout.addLayout(formatting_bar)
+
         # Logo text editor
         self.logo_editor = QTextEdit()
         self.logo_editor.setFont(QFont("Courier", 10))
@@ -67,11 +92,15 @@ class LogoEditorDialog(QDialog):
         
         # Buttons
         button_layout = QHBoxLayout()
-        
+
         load_btn = QPushButton(self.i18n.t("load_logo"))
         load_btn.clicked.connect(self.load_logo)
         button_layout.addWidget(load_btn)
-        
+
+        import_btn = QPushButton(self.i18n.t("import_logo_image"))
+        import_btn.clicked.connect(self.import_image_logo)
+        button_layout.addWidget(import_btn)
+
         save_btn = QPushButton(self.i18n.t("save_logo"))
         save_btn.clicked.connect(self.save_logo)
         button_layout.addWidget(save_btn)
@@ -105,6 +134,24 @@ class LogoEditorDialog(QDialog):
     def update_preview(self):
         """Update preview with current logo text."""
         self.logo_preview.setPlainText(self.logo_editor.toPlainText())
+
+    def toggle_bold(self):
+        """Toggle bold font for editor and preview."""
+        self._bold_enabled = self.bold_btn.isChecked()
+        weight = QFont.Bold if self._bold_enabled else QFont.Normal
+        for widget in (self.logo_editor, self.logo_preview):
+            font = widget.font()
+            font.setWeight(weight)
+            widget.setFont(font)
+
+    def change_font_size(self, size: int):
+        """Adjust font size for both editor and preview."""
+        if size <= 0:
+            return
+        for widget in (self.logo_editor, self.logo_preview):
+            font = widget.font()
+            font.setPointSize(size)
+            widget.setFont(font)
     
     def load_logo(self):
         """Load logo from file."""
@@ -121,6 +168,26 @@ class LogoEditorDialog(QDialog):
                     self.logo_editor.setPlainText(f.read())
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to load logo: {e}")
+
+    def import_image_logo(self):
+        """Import an image logo and convert to ASCII."""
+        file_name, _ = QFileDialog.getOpenFileName(
+            self,
+            self.i18n.t("import_logo_image"),
+            "templates/logos",
+            "Image Files (*.png *.jpg *.jpeg *.bmp *.gif);;All Files (*)",
+        )
+
+        if not file_name:
+            return
+
+        try:
+            ascii_logo = image_to_ascii(file_name, width=self.logo_width)
+            self.logo_editor.setPlainText(ascii_logo)
+            self.update_preview()
+        except LogoConversionError as exc:
+            logger.error("Logo import failed: %s", exc)
+            QMessageBox.warning(self, self.i18n.t("import_logo_image"), str(exc))
     
     def save_logo(self):
         """Save logo to file."""
