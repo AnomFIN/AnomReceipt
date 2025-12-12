@@ -11,6 +11,8 @@ A modern Python 3 Qt-based receipt printing application for Epson TM-T70II (ESC/
 - **Template System** - JSON/YAML-based templates for multiple companies
 - **Payment Methods** - Support for cash, card, MobilePay, and bank transfers
 - **Advanced Logo Editor** - Built-in editor with library of 26+ pre-designed logos
+- **Image-to-ASCII Logos** - Import PNG/JPG/BMP logos and convert to printable ASCII
+- **Typography Controls** - Bold toggle and font sizing for crisp logo editing
 - **Configurable Settings** - Adjust receipt width, length, logo dimensions, and formatting
 - **Luxury Brand Templates** - Pre-built templates for Louis Vuitton, Gucci, Hermès, Chanel, Prada, Rolex, and more
 - **Clean, Modular Code** - Well-organized codebase following Python best practices
@@ -146,10 +148,11 @@ payment_methods:
 4. Customize or create your own ASCII art
 5. Click "Save Logo" to save to a file
 6. Reference the logo file in your company template
+7. Need your existing logo? Click "Import logo image" to load PNG/JPG/BMP/GIF files and auto-convert to ASCII.
 
 **Tips for ASCII Logos:**
 - Check max dimensions in Settings (default: 48 chars × 20 lines)
-- Use the character counter to stay within limits
+- Use the font-size control to tighten alignment and the bold toggle when tracing outlines
 - Browse the library for inspiration
 - Test the preview before printing
 
