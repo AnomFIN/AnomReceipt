@@ -146,8 +146,6 @@ class LogoEditorDialog(QDialog):
 
     def change_font_size(self, size: int):
         """Adjust font size for both editor and preview."""
-        if size <= 0:
-            return
         for widget in (self.logo_editor, self.logo_preview):
             font = widget.font()
             font.setPointSize(size)
