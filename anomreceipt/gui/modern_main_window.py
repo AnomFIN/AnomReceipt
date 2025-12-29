@@ -333,9 +333,14 @@ class ModernMainWindow(QMainWindow):
             )
             return
         
-        # Scale image to fit preview
+        # Scale image to fit preview (use minimum size to avoid tiny displays)
+        preview_size = self.image_label.size()
+        target_width = max(preview_size.width(), 400)
+        target_height = max(preview_size.height(), 400)
+        
         scaled_pixmap = pixmap.scaled(
-            self.image_label.size(),
+            target_width,
+            target_height,
             Qt.KeepAspectRatio,
             Qt.SmoothTransformation
         )

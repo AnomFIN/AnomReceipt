@@ -294,9 +294,13 @@ class OCREngine:
                     structured.append('')
                     structured.append(word.center(line_width))
                     structured.append('')
-                # Check if this looks like a price
-                elif any(c in word for c in ['€', '$', '£']) or (
-                    len(word) > 1 and word[0].isdigit() and ',' in word
+                # Check if this looks like a price (must have currency symbol or proper price format)
+                elif any(c in word for c in ['€', '$', '£', '¥']) or (
+                    len(word) > 2 and 
+                    word.replace(',', '').replace('.', '').isdigit() and 
+                    (',' in word or '.' in word) and
+                    word.count(',') <= 1 and 
+                    word.count('.') <= 1
                 ):
                     # Finish current line
                     if current_line:

@@ -235,7 +235,7 @@ def main():
         if optional_passed < total_optional:
             print("\n⚠ Note: Some optional components are not available:")
             if not results.get('tesseract', False):
-                print("  - Tesseract OCR: Install for OCR functionality")
+                print("  - Tesseract OCR: Install for OCR functionality.")
                 print("    Download: https://github.com/UB-Mannheim/tesseract/wiki")
         
         print("\nTo start the application:")

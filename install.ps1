@@ -184,21 +184,11 @@ function New-VirtualEnvironment {
 }
 
 function Get-VenvPython {
-    if ($IsWindows -or $env:OS -match "Windows") {
-        return Join-Path $VenvPath "Scripts\python.exe"
-    }
-    else {
-        return Join-Path $VenvPath "bin/python"
-    }
+    return Join-Path $VenvPath "Scripts\python.exe"
 }
 
 function Get-VenvPip {
-    if ($IsWindows -or $env:OS -match "Windows") {
-        return Join-Path $VenvPath "Scripts\pip.exe"
-    }
-    else {
-        return Join-Path $VenvPath "bin/pip"
-    }
+    return Join-Path $VenvPath "Scripts\pip.exe"
 }
 
 function Install-Requirements {
