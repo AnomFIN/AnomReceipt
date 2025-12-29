@@ -1,7 +1,10 @@
-PyQt5>=5.15.0
+PySide6>=6.5.0
 PyYAML>=6.0
 python-escpos>=3.0
 pillow>=10.3.0
 pyusb>=1.2.1
 requests>=2.32.0
 beautifulsoup4>=4.12.0
+pytesseract>=0.3.10
+opencv-python>=4.8.0
+numpy>=1.24.0
