@@ -246,9 +246,9 @@ def main():
     else:
         print("\n✗ Some required components failed!")
         print("\nWhat to do:")
-        print("  1. Check the error messages above")
-        print("  2. Run install.ps1 again")
-        print("  3. Check anomreceipt_install.log for details")
+        print("  1. Check the error messages above.")
+        print("  2. Run install.ps1 again.")
+        print("  3. Check anomreceipt_install.log for details.")
         
         return 1
 

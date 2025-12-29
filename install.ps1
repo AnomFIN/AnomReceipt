@@ -435,6 +435,7 @@ function Start-Installation {
 try {
     if ($Help) {
         Show-Help
+        exit 0
     }
     
     Start-Installation

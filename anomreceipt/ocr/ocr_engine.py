@@ -31,6 +31,10 @@ class OCREngine:
     Handles various fonts, sizes, and layouts with structure preservation.
     """
     
+    # Image preprocessing constants
+    ADAPTIVE_THRESHOLD_BLOCK_SIZE = 11
+    ADAPTIVE_THRESHOLD_C = 2
+    
     def __init__(self):
         """Initialize OCR engine."""
         self.tesseract_available = self._check_tesseract()
@@ -157,8 +161,8 @@ class OCREngine:
                 255,
                 cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                 cv2.THRESH_BINARY,
-                11,
-                2
+                self.ADAPTIVE_THRESHOLD_BLOCK_SIZE,
+                self.ADAPTIVE_THRESHOLD_C
             )
             
             # Morphological operations to clean up
@@ -266,6 +270,43 @@ class OCREngine:
             logger.error(f"Error performing OCR: {e}", exc_info=True)
             return "", 0.0
     
+    def _is_valid_price_format(self, word: str) -> bool:
+        """
+        Check if a word looks like a valid price number.
+        
+        Args:
+            word: Word to check
+        
+        Returns:
+            True if word looks like a price
+        """
+        # Must have at least one digit
+        if not any(c.isdigit() for c in word):
+            return False
+        
+        # Remove valid separators and check if remaining characters are all digits
+        cleaned = word.replace(',', '').replace('.', '')
+        if not cleaned.isdigit():
+            return False
+        
+        # Must have exactly one separator (comma or period)
+        separator_count = word.count(',') + word.count('.')
+        if separator_count != 1:
+            return False
+        
+        # Separator must be followed by 2 digits (cents)
+        if '.' in word:
+            parts = word.split('.')
+            if len(parts) == 2 and len(parts[1]) == 2 and parts[1].isdigit():
+                return True
+        
+        if ',' in word:
+            parts = word.split(',')
+            if len(parts) == 2 and len(parts[1]) == 2 and parts[1].isdigit():
+                return True
+        
+        return False
+    
     def _structure_text(self, text: str) -> str:
         """
         Structure and format extracted text to look human-formatted.
@@ -294,19 +335,18 @@ class OCREngine:
                     structured.append('')
                     structured.append(word.center(line_width))
                     structured.append('')
-                # Check if this looks like a price (must have currency symbol or proper price format)
-                elif any(c in word for c in ['€', '$', '£', '¥']) or (
-                    len(word) > 2 and 
-                    word.replace(',', '').replace('.', '').isdigit() and 
-                    (',' in word or '.' in word) and
-                    word.count(',') <= 1 and 
-                    word.count('.') <= 1
-                ):
-                    # Finish current line
+                # Check if this looks like a price (must have currency or be valid numeric)
+                elif any(c in word for c in ['€', '$', '£', '¥']):
+                    # Has currency symbol - definitely a price
                     if current_line:
                         structured.append(' '.join(current_line))
                         current_line = []
-                    # Add price line
+                    structured.append(word.rjust(line_width))
+                elif self._is_valid_price_format(word):
+                    # Looks like a price number (e.g., "12.99" or "1,234.56")
+                    if current_line:
+                        structured.append(' '.join(current_line))
+                        current_line = []
                     structured.append(word.rjust(line_width))
                 else:
                     # Regular word

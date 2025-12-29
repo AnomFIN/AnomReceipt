@@ -333,10 +333,19 @@ class ModernMainWindow(QMainWindow):
             )
             return
         
-        # Scale image to fit preview (use minimum size to avoid tiny displays)
+        # Scale image to fit preview (ensure reasonable display size)
         preview_size = self.image_label.size()
-        target_width = max(preview_size.width(), 400)
-        target_height = max(preview_size.height(), 400)
+        
+        # Use actual preview size, but ensure minimum reasonable size
+        # to avoid tiny displays on first load
+        if preview_size.width() < 100 or preview_size.height() < 100:
+            # On first load, use a reasonable default
+            target_width = 600
+            target_height = 600
+        else:
+            # Use actual preview area size
+            target_width = preview_size.width()
+            target_height = preview_size.height()
         
         scaled_pixmap = pixmap.scaled(
             target_width,
