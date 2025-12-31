@@ -3,7 +3,6 @@ Professional theme system for AnomReceipt.
 Provides modern dark and light themes with consistent styling.
 """
 
-from PySide6.QtGui import QPalette, QColor
 from typing import Dict
 
 
