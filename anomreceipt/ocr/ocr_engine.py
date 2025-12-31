@@ -348,7 +348,7 @@ class OCREngine:
                         current_line = []
                     structured.append(word.rjust(line_width))
                 elif self._is_valid_price_format(word):
-                    # Looks like a price number (e.g., "12.99" or "1,234.56")
+                    # Looks like a price number (e.g., "12.99" or "1234,56")
                     if current_line:
                         structured.append(' '.join(current_line))
                         current_line = []
