@@ -72,7 +72,7 @@ That's it! The installer handles everything automatically.
 - Tesseract OCR (optional, for OCR features)
 
 ### Linux (Legacy Support)
-- Python 3.7 or higher
+- Python 3.8 or higher
 - Linux operating system
 - Epson TM-T70II printer (or compatible ESC/POS printer)
 
