@@ -1,45 +1,267 @@
 # AnomReceipt
 
-A modern Python 3 Qt-based receipt printing application for Epson TM-T70II (ESC/POS) printers.
+**Professional Windows Receipt OCR Application**
 
-## Features
+> 🎉 **Version 2.0** - Complete Windows redesign with modern GUI, OCR functionality, and bulletproof stability!
 
-- **Reactive Qt GUI** - Modern, responsive user interface built with PyQt5
-- **Multiple Printer Connections** - Support for both USB and Network (IP) connections
-- **Live Text Preview** - Real-time preview of receipts before printing
-- **Bilingual Support** - Full FI/EN language toggle for both UI and receipts
-- **Template System** - JSON/YAML-based templates for multiple companies
-- **Payment Methods** - Support for cash, card, MobilePay, and bank transfers
-- **Advanced Logo Editor** - Built-in editor with library of 26+ pre-designed logos
-- **Image-to-ASCII Logos** - Import PNG/JPG/BMP logos and convert to printable ASCII
-- **Typography Controls** - Bold toggle and font sizing for crisp logo editing
-- **Configurable Settings** - Adjust receipt width, length, logo dimensions, and formatting
-- **Luxury Brand Templates** - Pre-built templates for Louis Vuitton, Gucci, Hermès, Chanel, Prada, Rolex, and more
-- **Clean, Modular Code** - Well-organized codebase following Python best practices
+## 🪟 Windows Users - Start Here!
 
-## Requirements
+**For Windows installation and usage, see:** [WINDOWS_README.md](WINDOWS_README.md)
 
-- Python 3.7 or higher
+### Quick Start (Windows)
+
+1. Install Python 3.8+ (check "Add Python to PATH")
+2. Run: `.\install.ps1`
+3. Launch: `launch.bat` or `python main.py`
+
+That's it! The installer handles everything automatically.
+
+---
+
+## ✨ What's New in Version 2.0
+
+### 🎨 Modern Windows GUI
+- **Professional design** - Native Windows feel
+- **Dark & Light themes** - Toggle anytime
+- **Responsive layout** - Resizable split-view
+- **Status indicators** - Visual feedback for all operations
+
+### 🔍 OCR Functionality ("Litteroi Kuvasta")
+- **High-quality text extraction** from receipt images
+- **Intelligent preprocessing** for better accuracy
+- **Structure preservation** - Maintains formatting and hierarchy
+- **Multiple formats** - PNG, JPG, JPEG, BMP, TIFF support
+
+### 🛡️ Absolute Stability
+- **Never crashes** - Comprehensive error handling
+- **User-friendly messages** - No technical jargon
+- **Detailed logging** - Everything logged for troubleshooting
+- **Graceful recovery** - App continues after errors
+
+### 💪 Professional Quality
+- **Clean architecture** - Well-organized codebase
+- **Type safety** - Full type annotations
+- **Documentation** - Comprehensive docstrings
+- **Production-ready** - No hacks or TODOs
+
+---
+
+## 🚀 Features
+
+### Core Features
+- **OCR Processing** - Extract text from receipt images
+- **Image Enhancement** - Automatic preprocessing for better results
+- **Logo Detection** - Identifies and handles non-text elements
+- **Text Editing** - Edit extracted text before saving
+- **Multiple Export** - Save as text file or copy to clipboard
+
+### Technical Features
+- **PySide6/Qt GUI** - Native Windows integration
+- **Tesseract OCR** - Industry-standard OCR engine
+- **OpenCV Processing** - Advanced image preprocessing
+- **Error Handling** - Defensive programming throughout
+- **Comprehensive Logging** - Rotating log files with full details
+
+---
+
+## 📋 Requirements
+
+### Windows
+- Windows 10 or 11 (64-bit)
+- Python 3.8 or higher
+- Tesseract OCR (optional, for OCR features)
+
+### Linux (Legacy Support)
+- Python 3.8 or higher
 - Linux operating system
 - Epson TM-T70II printer (or compatible ESC/POS printer)
 
-## Installation
+*Note: Version 2.0 is optimized for Windows. Linux users can still use the legacy features.*
 
-1. Clone the repository:
-```bash
+---
+
+## 📦 Installation
+
+### Automated Windows Installation (Recommended)
+
+```powershell
+# Clone repository
 git clone https://github.com/AnomFIN/AnomReceipt.git
 cd AnomReceipt
+
+# Run installer (automatically handles everything)
+.\install.ps1
+
+# Launch application
+.\launch.bat
+# OR
+python main.py
 ```
 
-2. Install dependencies:
+### Manual Installation
+
 ```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# Windows:
+venv\Scripts\activate
+# Linux:
+source venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
+
+# Run application
+python main.py
 ```
 
-3. Run the application:
-```bash
-python3 main.py
+---
+
+## 📖 Documentation
+
+- **[Windows Installation & Usage Guide](WINDOWS_README.md)** - Complete guide for Windows users
+- **[Legacy README](README.old.md)** - Original Linux/printer documentation  
+- **[Project Summary](PROJECT_SUMMARY.md)** - Technical implementation details
+- **[Luxury Brands](LUXURY_BRANDS.md)** - Brand template information
+- **[Contributing](CONTRIBUTING.md)** - How to contribute
+- **[Security](SECURITY.md)** - Security information
+
+---
+
+## 🗂️ Project Structure
+
 ```
+AnomReceipt/
+├── install.ps1              # Windows installer (PowerShell)
+├── launch.bat               # Quick launch script (Windows)
+├── verify_install.py        # Installation verification
+├── main.py                  # Application entry point
+├── requirements.txt         # Python dependencies
+│
+├── anomreceipt/            # Main application package
+│   ├── core/              # Error handling & logging
+│   │   ├── logger.py
+│   │   └── error_handler.py
+│   │
+│   ├── gui/               # Modern Windows GUI
+│   │   ├── modern_main_window.py  # Main application window
+│   │   ├── theme_manager.py       # Dark/Light themes
+│   │   └── status_widget.py       # Status indicators
+│   │
+│   ├── ocr/               # OCR engine
+│   │   └── ocr_engine.py
+│   │
+│   ├── printer/           # Printer support (legacy)
+│   ├── templates/         # Receipt templates (legacy)
+│   └── locale/            # Internationalization (legacy)
+│
+├── logs/                   # Application logs
+└── venv/                   # Virtual environment
+```
+
+---
+
+## 🎯 Usage
+
+### Processing Receipt Images
+
+1. **Load an image**
+   - Click "📁 Load Image"
+   - Select a receipt image
+   - Preview appears on the left
+
+2. **Process with OCR**
+   - Click "🔍 Process OCR"
+   - Watch the progress
+   - Text appears on the right
+
+3. **Edit and Save**
+   - Edit the extracted text
+   - Save to file or copy to clipboard
+
+See [WINDOWS_README.md](WINDOWS_README.md) for detailed usage instructions.
+
+---
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+**"PySide6 not found"**
+- Run the installer: `.\install.ps1`
+- Or: `pip install -r requirements.txt`
+
+**"OCR not working"**
+- Install Tesseract OCR
+- Download: https://github.com/UB-Mannheim/tesseract/wiki
+
+**"Application won't start"**
+- Check logs in `logs/` directory
+- Run verification: `python verify_install.py`
+- Reinstall: Delete `venv` and run `install.ps1`
+
+For more troubleshooting, see [WINDOWS_README.md](WINDOWS_README.md#troubleshooting).
+
+---
+
+## 📝 Migration from Version 1.x
+
+Version 2.0 introduces significant changes:
+
+### New Features
+- Modern Windows GUI with PySide6 (replaced PyQt5)
+- OCR functionality for receipt images
+- Professional error handling and logging
+- Dark/Light theme support
+
+### Legacy Features (Still Available)
+- Receipt printing (ESC/POS)
+- Template system
+- Logo editor
+- Multiple language support
+
+### Breaking Changes
+- GUI completely redesigned
+- PyQt5 → PySide6 migration
+- New project structure
+
+---
+
+## 🆘 Support
+
+Need help?
+
+1. Check [WINDOWS_README.md](WINDOWS_README.md)
+2. Review logs in `logs/` directory
+3. Run `python verify_install.py` to diagnose issues
+4. Open an issue on GitHub
+
+---
+
+## 📜 License
+
+This project is open source and available for use and modification.
+
+---
+
+## 👨‍💻 Author
+
+**AnomFIN**
+
+---
+
+## 🙏 Acknowledgments
+
+- **PySide6** - Modern Qt framework for Python
+- **Tesseract OCR** - Industry-standard OCR engine
+- **OpenCV** - Computer vision library
+- **python-escpos** - ESC/POS printer support
+
+---
+
+**Made with 💙 for Windows**
 
 ## Project Structure
 
