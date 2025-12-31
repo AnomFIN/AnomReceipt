@@ -6,7 +6,7 @@ Built with PySide6/Qt for native Windows feel.
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
     QPushButton, QLabel, QTextEdit, QFileDialog, QProgressBar,
-    QGroupBox, QFrame, QApplication
+    QFrame, QApplication
 )
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QPixmap, QFont
