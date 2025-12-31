@@ -112,7 +112,12 @@ def test_ocr_module():
         
         # Test instantiation
         engine = OCREngine()
-        print_result("OCR Engine Creation", True, "Engine instantiated")
+        print_result(
+            "OCR Engine Creation",
+            True,
+            f"Engine instantiated: {type(engine).__name__}",
+        )
+        del engine
         return True
     except Exception as e:
         print_result("OCR Module", False, str(e))
