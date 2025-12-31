@@ -166,7 +166,7 @@ class OCREngine:
             )
             
             # Morphological operations to clean up
-            kernel = np.ones((1, 1), np.uint8)
+            kernel = np.ones((3, 3), np.uint8)
             cleaned = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
             
             logger.debug("Image preprocessing completed")
