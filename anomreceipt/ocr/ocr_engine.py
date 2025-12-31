@@ -294,16 +294,21 @@ class OCREngine:
         if separator_count != 1:
             return False
         
-        # Separator must be followed by 2 digits (cents)
-        if '.' in word:
-            parts = word.split('.')
-            if len(parts) == 2 and len(parts[1]) == 2 and parts[1].isdigit():
-                return True
+        # Separator must be followed by 2 digits (cents) and must have a non-empty integer part
+        separator = '.' if '.' in word else ','
+        parts = word.split(separator)
+        if len(parts) != 2:
+            return False
         
-        if ',' in word:
-            parts = word.split(',')
-            if len(parts) == 2 and len(parts[1]) == 2 and parts[1].isdigit():
-                return True
+        integer_part, fractional_part = parts
+        
+        # Integer part must be non-empty and digits
+        if not integer_part or not integer_part.isdigit():
+            return False
+        
+        # Fractional part must be exactly 2 digits (cents)
+        if len(fractional_part) == 2 and fractional_part.isdigit():
+            return True
         
         return False
     
