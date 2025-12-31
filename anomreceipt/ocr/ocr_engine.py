@@ -8,7 +8,7 @@ import numpy as np
 import pytesseract
 from PIL import Image
 from pathlib import Path
-from typing import List, Optional, Dict, Tuple
+from typing import Optional, Tuple
 from dataclasses import dataclass
 from ..core import get_logger, with_error_handling
 
