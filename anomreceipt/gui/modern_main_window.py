@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QGroupBox, QFrame, QApplication
 )
 from PySide6.QtCore import Qt, QThread, Signal, QTimer
-from PySide6.QtGui import QPixmap, QImage, QFont
+from PySide6.QtGui import QPixmap, QFont
 from pathlib import Path
 from typing import Optional
 
