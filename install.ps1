@@ -1,6 +1,6 @@
-# AnomReceipt Windows Installer
+# AnomReceipt Installer
 # Professional, bulletproof installation script
-# Supports interactive and silent modes
+# Supports Windows, Linux, and macOS with PowerShell Core
 
 param(
     [switch]$Silent = $false,
@@ -350,22 +350,33 @@ if %ERRORLEVEL% neq 0 (
         }
     }
     else {
-        $launchScriptContent = @"
-#!/bin/bash
-echo "Starting AnomReceipt..."
-"$venvPython" main.py
-if [ `$? -ne 0 ]; then
-    echo ""
-    echo "Error: Application failed to start"
-    echo "Check anomreceipt.log for details"
-    read -p "Press Enter to continue..."
-fi
-"@
+        # Create Unix/Linux launch script
+        # Using array approach to avoid PowerShell variable expansion issues
+        $bashScript = @(
+            '#!/bin/bash',
+            'echo "Starting AnomReceipt..."',
+            "`"$venvPython`" main.py",
+            'if [ $? -ne 0 ]; then',
+            '    echo ""',
+            '    echo "Error: Application failed to start"',
+            '    echo "Check anomreceipt.log for details"',
+            '    read -p "Press Enter to continue..."',
+            'fi'
+        )
         
         try {
-            $launchScriptContent | Out-File -FilePath "launch.sh" -Encoding UTF8
+            $bashScript -join "`n" | Out-File -FilePath "launch.sh" -Encoding UTF8 -NoNewline
+            # Add final newline
+            "`n" | Out-File -FilePath "launch.sh" -Encoding UTF8 -Append -NoNewline
+            
             # Make the script executable on Unix systems
-            chmod +x launch.sh
+            try {
+                chmod +x launch.sh 2>$null
+            }
+            catch {
+                # chmod may not be available or may fail, but this is not critical
+                Write-Log "Warning: Could not make launch.sh executable: $_" "WARNING"
+            }
             Write-Log "Launch script created: launch.sh" "SUCCESS"
             return $true
         }
