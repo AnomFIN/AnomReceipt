@@ -14,6 +14,18 @@ $LogFile = "anomreceipt_install.log"
 $VenvPath = "venv"
 $RequirementsFile = "requirements.txt"
 
+# Platform detection
+$IsWindowsPlatform = $IsWindows -or ($PSVersionTable.PSVersion.Major -le 5)
+if ($IsWindowsPlatform) {
+    $VenvScriptsDir = "Scripts"
+    $PythonExe = "python.exe"
+    $PipExe = "pip.exe"
+} else {
+    $VenvScriptsDir = "bin"
+    $PythonExe = "python"
+    $PipExe = "pip"
+}
+
 # Colors for output
 $ColorSuccess = "Green"
 $ColorError = "Red"
@@ -44,8 +56,8 @@ function Write-Log {
 
 function Show-Help {
     Write-Host ""
-    Write-Host "AnomReceipt Windows Installer" -ForegroundColor $ColorInfo
-    Write-Host "=============================" -ForegroundColor $ColorInfo
+    Write-Host "AnomReceipt Installer (Cross-Platform PowerShell)" -ForegroundColor $ColorInfo
+    Write-Host "===================================================" -ForegroundColor $ColorInfo
     Write-Host ""
     Write-Host "Usage:" -ForegroundColor $ColorInfo
     Write-Host "  .\install.ps1              # Interactive installation"
@@ -56,6 +68,11 @@ function Show-Help {
     Write-Host "  - Python 3.8 or higher"
     Write-Host "  - pip (Python package installer)"
     Write-Host "  - venv module (Python virtual environment)"
+    Write-Host ""
+    Write-Host "Platform Support:" -ForegroundColor $ColorInfo
+    Write-Host "  - Windows (PowerShell 5.1 or PowerShell Core)"
+    Write-Host "  - Linux (PowerShell Core / pwsh)"
+    Write-Host "  - macOS (PowerShell Core / pwsh)"
     Write-Host ""
     exit 0
 }
@@ -184,11 +201,11 @@ function New-VirtualEnvironment {
 }
 
 function Get-VenvPython {
-    return Join-Path $VenvPath "Scripts\python.exe"
+    return Join-Path $VenvPath "$VenvScriptsDir/$PythonExe"
 }
 
 function Get-VenvPip {
-    return Join-Path $VenvPath "Scripts\pip.exe"
+    return Join-Path $VenvPath "$VenvScriptsDir/$PipExe"
 }
 
 function Install-Requirements {
@@ -309,7 +326,8 @@ function New-LaunchScript {
     
     $venvPython = Get-VenvPython
     
-    $launchScriptContent = @"
+    if ($IsWindowsPlatform) {
+        $launchScriptContent = @"
 @echo off
 echo Starting AnomReceipt...
 "$venvPython" main.py
@@ -320,15 +338,41 @@ if %ERRORLEVEL% neq 0 (
     pause
 )
 "@
-    
-    try {
-        $launchScriptContent | Out-File -FilePath "launch.bat" -Encoding ASCII
-        Write-Log "Launch script created: launch.bat" "SUCCESS"
-        return $true
+        
+        try {
+            $launchScriptContent | Out-File -FilePath "launch.bat" -Encoding ASCII
+            Write-Log "Launch script created: launch.bat" "SUCCESS"
+            return $true
+        }
+        catch {
+            Write-Log "Error creating launch script: $_" "ERROR"
+            return $false
+        }
     }
-    catch {
-        Write-Log "Error creating launch script: $_" "ERROR"
-        return $false
+    else {
+        $launchScriptContent = @"
+#!/bin/bash
+echo "Starting AnomReceipt..."
+"$venvPython" main.py
+if [ `$? -ne 0 ]; then
+    echo ""
+    echo "Error: Application failed to start"
+    echo "Check anomreceipt.log for details"
+    read -p "Press Enter to continue..."
+fi
+"@
+        
+        try {
+            $launchScriptContent | Out-File -FilePath "launch.sh" -Encoding UTF8
+            # Make the script executable on Unix systems
+            chmod +x launch.sh
+            Write-Log "Launch script created: launch.sh" "SUCCESS"
+            return $true
+        }
+        catch {
+            Write-Log "Error creating launch script: $_" "ERROR"
+            return $false
+        }
     }
 }
 
@@ -339,9 +383,18 @@ function Show-CompletionMessage {
     Write-Host "============================================" -ForegroundColor $ColorSuccess
     Write-Host ""
     Write-Host "To start the application:" -ForegroundColor $ColorInfo
-    Write-Host "  1. Double-click 'launch.bat'" -ForegroundColor White
-    Write-Host "  OR" -ForegroundColor $ColorInfo
-    Write-Host "  2. Run: .\venv\Scripts\python.exe main.py" -ForegroundColor White
+    
+    if ($IsWindowsPlatform) {
+        Write-Host "  1. Double-click 'launch.bat'" -ForegroundColor White
+        Write-Host "  OR" -ForegroundColor $ColorInfo
+        Write-Host "  2. Run: .\venv\Scripts\python.exe main.py" -ForegroundColor White
+    }
+    else {
+        Write-Host "  1. Run: ./launch.sh" -ForegroundColor White
+        Write-Host "  OR" -ForegroundColor $ColorInfo
+        Write-Host "  2. Run: ./venv/bin/python main.py" -ForegroundColor White
+    }
+    
     Write-Host ""
     Write-Host "Installation log: $LogFile" -ForegroundColor $ColorInfo
     Write-Host ""
@@ -351,12 +404,13 @@ function Show-CompletionMessage {
 function Start-Installation {
     Write-Host ""
     Write-Host "============================================" -ForegroundColor $ColorInfo
-    Write-Host "  AnomReceipt Windows Installer" -ForegroundColor $ColorInfo
+    Write-Host "  AnomReceipt Installer" -ForegroundColor $ColorInfo
     Write-Host "============================================" -ForegroundColor $ColorInfo
     Write-Host ""
     
     Write-Log "Starting installation..." "INFO"
     Write-Log "PowerShell version: $($PSVersionTable.PSVersion)" "INFO"
+    Write-Log "Platform: $(if ($IsWindowsPlatform) { 'Windows' } else { 'Unix/Linux/macOS' })" "INFO"
     Write-Log "OS: $env:OS" "INFO"
     
     # Check Python

@@ -45,3 +45,5 @@ Thumbs.db
 config.json
 *.log
 logs/
+launch.bat
+launch.sh
