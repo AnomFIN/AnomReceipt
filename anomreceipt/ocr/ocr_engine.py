@@ -236,136 +236,101 @@ class OCREngine:
             else:
                 pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
             
-            # Configure Tesseract
-            custom_config = r'--oem 3 --psm 6'
+            # Configure Tesseract for better receipt reading
+            # PSM 6 = Assume a single uniform block of text
+            # PSM 4 = Assume a single column of text of variable sizes
+            custom_config = r'--oem 3 --psm 4'
             
-            # Perform OCR with detailed data
+            # Perform OCR with detailed data to preserve line structure
             data = pytesseract.image_to_data(
                 pil_image,
                 config=custom_config,
                 output_type=pytesseract.Output.DICT
             )
             
-            # Extract text with confidence
-            text_parts = []
+            # Build text preserving line structure
+            lines = {}
             confidences = []
             
-            for i, conf in enumerate(data['conf']):
-                if conf > 0:  # Valid detection
-                    text = data['text'][i].strip()
-                    if text:
-                        text_parts.append(text)
-                        confidences.append(float(conf))
+            for i in range(len(data['text'])):
+                conf = data['conf'][i]
+                text = data['text'][i].strip()
+                
+                if conf > 0 and text:  # Valid detection
+                    block_num = data['block_num'][i]
+                    par_num = data['par_num'][i]
+                    line_num = data['line_num'][i]
+                    
+                    # Create unique line key
+                    line_key = (block_num, par_num, line_num)
+                    
+                    if line_key not in lines:
+                        lines[line_key] = []
+                    
+                    lines[line_key].append(text)
+                    confidences.append(float(conf))
             
-            # Join text
-            full_text = ' '.join(text_parts)
+            # Join words within lines and lines with newlines
+            line_texts = []
+            for line_key in sorted(lines.keys()):
+                line_text = ' '.join(lines[line_key])
+                line_texts.append(line_text)
+            
+            full_text = '\n'.join(line_texts)
             
             # Calculate average confidence
             avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
             
-            logger.debug(f"OCR extracted {len(text_parts)} text elements")
+            logger.debug(f"OCR extracted {len(line_texts)} lines with {len(confidences)} words")
             return full_text, avg_confidence
         
         except Exception as e:
             logger.error(f"Error performing OCR: {e}", exc_info=True)
             return "", 0.0
     
-    def _is_valid_price_format(self, word: str) -> bool:
-        """
-        Check if a word looks like a valid price number.
-        
-        Args:
-            word: Word to check
-        
-        Returns:
-            True if word looks like a price
-        """
-        # Must have at least one digit
-        if not any(c.isdigit() for c in word):
-            return False
-        
-        # Remove valid separators and check if remaining characters are all digits
-        cleaned = word.replace(',', '').replace('.', '')
-        if not cleaned.isdigit():
-            return False
-        
-        # Must have exactly one separator (comma or period)
-        separator_count = word.count(',') + word.count('.')
-        if separator_count != 1:
-            return False
-        
-        # Separator must be followed by 2 digits (cents) and must have a non-empty integer part
-        separator = '.' if '.' in word else ','
-        parts = word.split(separator)
-        if len(parts) != 2:
-            return False
-        
-        integer_part, fractional_part = parts
-        
-        # Integer part must be non-empty and digits
-        if not integer_part or not integer_part.isdigit():
-            return False
-        
-        # Fractional part must be exactly 2 digits (cents)
-        if len(fractional_part) == 2 and fractional_part.isdigit():
-            return True
-        
-        return False
-    
     def _structure_text(self, text: str) -> str:
         """
         Structure and format extracted text to look human-formatted.
+        The input text already has line breaks preserved from OCR.
         
         Args:
-            text: Raw OCR text
+            text: Raw OCR text with line breaks
         
         Returns:
             Structured and formatted text
         """
         try:
-            lines = text.split()
+            # Text already has line structure from OCR, just clean it up
+            lines = text.split('\n')
             structured = []
-            current_line = []
-            line_width = 48  # Receipt width
             
-            # Group words into lines
-            for word in lines:
-                # Check if this looks like a header (all caps, short)
-                if word.isupper() and len(word) > 2:
-                    # Finish current line
-                    if current_line:
-                        structured.append(' '.join(current_line))
-                        current_line = []
-                    # Add header with spacing
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    # Preserve empty lines for spacing
                     structured.append('')
-                    structured.append(word.center(line_width))
-                    structured.append('')
-                # Check if this looks like a price (must have currency or be valid numeric)
-                elif any(c in word for c in ['€', '$', '£', '¥']):
-                    # Has currency symbol - definitely a price
-                    if current_line:
-                        structured.append(' '.join(current_line))
-                        current_line = []
-                    structured.append(word.rjust(line_width))
-                elif self._is_valid_price_format(word):
-                    # Looks like a price number (e.g., "12.99" or "1234,56")
-                    if current_line:
-                        structured.append(' '.join(current_line))
-                        current_line = []
-                    structured.append(word.rjust(line_width))
+                    continue
+                
+                # Keep the line as-is since OCR already provides reasonable structure
+                # Just ensure it's not too long (wrap if needed)
+                line_width = 80  # Wider for receipt viewing
+                
+                if len(line) <= line_width:
+                    structured.append(line)
                 else:
-                    # Regular word
-                    test_line = ' '.join(current_line + [word])
-                    if len(test_line) <= line_width:
-                        current_line.append(word)
-                    else:
-                        if current_line:
-                            structured.append(' '.join(current_line))
-                        current_line = [word]
-            
-            # Add remaining line
-            if current_line:
-                structured.append(' '.join(current_line))
+                    # Wrap long lines
+                    words = line.split()
+                    current_line = []
+                    for word in words:
+                        test_line = ' '.join(current_line + [word])
+                        if len(test_line) <= line_width:
+                            current_line.append(word)
+                        else:
+                            if current_line:
+                                structured.append(' '.join(current_line))
+                            current_line = [word]
+                    if current_line:
+                        structured.append(' '.join(current_line))
             
             # Join with newlines
             result = '\n'.join(structured)

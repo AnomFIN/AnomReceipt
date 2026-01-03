@@ -28,6 +28,15 @@ except Exception:
 
 logger = logging.getLogger(__name__)
 
+# Barcode markup regex patterns (shared constants)
+# Pattern uses anchors (^ and $) for exact matching with re.match()
+# Data part uses uppercase A-Z and 0-9 to match validation rules
+BARCODE_MARKUP_PATTERN = r'^>BARCODE\s+([A-Z0-9-]+)\s+([A-Z0-9]+)>(.*)$'
+BARCODE_VISUAL_PATTERN = r'^\[BARCODE\s+([A-Z0-9-]+):\s+([A-Z0-9]+)\]$'
+
+# Image replacement characters that appear when HTML <img> tags are converted to plain text
+IMAGE_REPLACEMENT_CHARS = ['?', '�', '☐', '⊠', '▯', '□']
+
 
 class NetworkDialog(QDialog):
     """Dialog for network printer connection"""
@@ -438,14 +447,14 @@ class MainWindow(QMainWindow):
         url_found = None
         for url in candidates:
             try:
-                r = requests.get(url, headers=headers, timeout=10)
+                r = requests.get(url, headers=headers, timeout=20)
                 if r.status_code == 200:
                     if 'duckduckgo.com' in url:
                         soup = BeautifulSoup(r.text, 'html.parser')
                         a = soup.select_one('a.result__a, a.result__url')
                         if a and a.get('href'):
                             url_found = a.get('href')
-                            rr = requests.get(url_found, headers=headers, timeout=10)
+                            rr = requests.get(url_found, headers=headers, timeout=20)
                             if rr.status_code == 200:
                                 html = rr.text
                                 break
@@ -951,7 +960,36 @@ class MainWindow(QMainWindow):
                     i += receipt_width
 
         # Render HTML with image + preformatted text for alignment
-        escaped = '\n'.join(wrapped).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        # Handle barcode markup by converting to visual representation
+        escaped_lines = []
+        for line in wrapped:
+            # Check for barcode markup: >BARCODE TYPE DATA>
+            if line.strip().startswith('>BARCODE '):
+                # Parse barcode using shared pattern
+                match = re.match(BARCODE_MARKUP_PATTERN, line.strip())
+                if match:
+                    bc_type = match.group(1)
+                    bc_data = match.group(2)
+                    remaining = match.group(3)
+                    # Create visual barcode representation for preview
+                    # Use a simple ASCII art representation
+                    barcode_visual = f"[BARCODE {bc_type}: {bc_data}]"
+                    barcode_visual = barcode_visual.center(receipt_width)
+                    # Add visual bars with limited width
+                    # Limit bar count to avoid excessive width (max 20 bars)
+                    bar_count = min(len(bc_data), 20)
+                    bars = '|' + '| ' * bar_count + '|'
+                    bars = bars.center(receipt_width)
+                    escaped_lines.append(bars)
+                    escaped_lines.append(barcode_visual)
+                    if remaining:
+                        escaped_lines.append(remaining.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;'))
+                    continue
+            
+            # Regular line - escape HTML
+            escaped_lines.append(line.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;'))
+        
+        escaped = '\n'.join(escaped_lines)
         html = img_html + f"<pre style=\"font-family:'Courier New',monospace; font-size:12px; white-space: pre;\">{escaped}</pre>"
         self.preview_text.setHtml(html)
 
@@ -1033,20 +1071,12 @@ class MainWindow(QMainWindow):
             
         # If user is editing preview, print exactly what's shown
         if hasattr(self, 'edit_toggle') and self.edit_toggle.isChecked():
-            content = self.preview_text.toPlainText()
-            ok = True
-            if getattr(self.current_template, 'logo_image', None):
-                ok = self.printer.print_image(self.current_template.logo_image)
-                if ok:
-                    self.printer.feed_lines(1)
-            if ok:
-                for line in content.split('\n'):
-                    if not self.printer.print_text(line + '\n'):
-                        ok = False
-                        break
-            if ok and self.printer.is_connected():
-                self.printer.feed_lines(3)
-                self.printer.cut_paper()
+            # Get HTML to preserve formatting (bold, italic, font size)
+            html_content = self.preview_text.toHtml()
+            
+            # Print using rich HTML method which preserves formatting
+            ok = self.printer.print_rich_html(html_content)
+            
             if ok:
                 QMessageBox.information(self, self.translator.translate('success'),
                                       self.translator.translate('print_success'))
