@@ -28,6 +28,10 @@ except Exception:
 
 logger = logging.getLogger(__name__)
 
+# Barcode markup regex patterns (shared constants)
+BARCODE_MARKUP_PATTERN = r'>BARCODE\s+([A-Z0-9-]+)\s+([A-Za-z0-9]+)>(.*)'
+BARCODE_VISUAL_PATTERN = r'\[BARCODE\s+([A-Z0-9-]+):\s+([A-Za-z0-9]+)\]'
+
 
 class NetworkDialog(QDialog):
     """Dialog for network printer connection"""
@@ -956,10 +960,8 @@ class MainWindow(QMainWindow):
         for line in wrapped:
             # Check for barcode markup: >BARCODE TYPE DATA>
             if line.strip().startswith('>BARCODE '):
-                # Parse barcode
-                import re
-                pattern = r'>BARCODE\s+([A-Z0-9-]+)\s+([A-Za-z0-9]+)>(.*)'
-                match = re.match(pattern, line.strip())
+                # Parse barcode using shared pattern
+                match = re.match(BARCODE_MARKUP_PATTERN, line.strip())
                 if match:
                     bc_type = match.group(1)
                     bc_data = match.group(2)
@@ -968,8 +970,10 @@ class MainWindow(QMainWindow):
                     # Use a simple ASCII art representation
                     barcode_visual = f"[BARCODE {bc_type}: {bc_data}]"
                     barcode_visual = barcode_visual.center(receipt_width)
-                    # Add visual bars
-                    bars = '|' + '| ' * (len(bc_data)) + '|'
+                    # Add visual bars with limited width
+                    # Limit bar count to avoid excessive width (max 20 bars)
+                    bar_count = min(len(bc_data), 20)
+                    bars = '|' + '| ' * bar_count + '|'
                     bars = bars.center(receipt_width)
                     escaped_lines.append(bars)
                     escaped_lines.append(barcode_visual)
@@ -1083,16 +1087,13 @@ class MainWindow(QMainWindow):
                 if ok:
                     self.printer.feed_lines(1)
             if ok:
-                import re
                 for line in content.split('\n'):
                     # Check for barcode markup or barcode visual representation
                     # Visual format from preview: [BARCODE TYPE: DATA]
-                    visual_pattern = r'\[BARCODE\s+([A-Z0-9-]+):\s+([A-Za-z0-9]+)\]'
-                    visual_match = re.search(visual_pattern, line)
+                    visual_match = re.search(BARCODE_VISUAL_PATTERN, line)
                     
                     # Original markup format: >BARCODE TYPE DATA>
-                    markup_pattern = r'>BARCODE\s+([A-Z0-9-]+)\s+([A-Za-z0-9]+)>'
-                    markup_match = re.search(markup_pattern, line)
+                    markup_match = re.search(BARCODE_MARKUP_PATTERN, line)
                     
                     if visual_match or markup_match:
                         match = visual_match if visual_match else markup_match

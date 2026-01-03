@@ -260,9 +260,65 @@ class ESCPOSPrinter:
             barcode_type = match.group(1)
             barcode_data = match.group(2)
             remaining = match.group(3).strip()
+            
+            # Validate barcode data based on type
+            valid, error = self._validate_barcode(barcode_type, barcode_data)
+            if not valid:
+                logger.warning(f"Invalid barcode data for {barcode_type}: {error}")
+                return False, None, None, text
+            
             return True, barcode_type, barcode_data, remaining
         
         return False, None, None, text
+    
+    def _validate_barcode(self, barcode_type: str, data: str) -> tuple:
+        """
+        Validate barcode data for a given barcode type.
+        
+        Args:
+            barcode_type: Type of barcode (EAN13, EAN8, etc.)
+            data: Barcode data to validate
+        
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        barcode_type = barcode_type.upper()
+        
+        # EAN13 requires exactly 13 digits
+        if barcode_type == 'EAN13':
+            if len(data) != 13 or not data.isdigit():
+                return False, "EAN13 requires exactly 13 digits"
+        
+        # EAN8 requires exactly 8 digits
+        elif barcode_type == 'EAN8':
+            if len(data) != 8 or not data.isdigit():
+                return False, "EAN8 requires exactly 8 digits"
+        
+        # UPC-A requires exactly 12 digits
+        elif barcode_type in ['UPC-A', 'UPCA', 'UPC_A']:
+            if len(data) != 12 or not data.isdigit():
+                return False, "UPC-A requires exactly 12 digits"
+        
+        # CODE39 allows alphanumeric but has length limits
+        elif barcode_type in ['CODE39', 'CODE-39']:
+            if len(data) > 43:
+                return False, "CODE39 data too long (max 43 characters)"
+            # CODE39 supports: 0-9, A-Z, and special chars (-, ., $, /, +, %, space)
+            import re
+            if not re.match(r'^[0-9A-Z\-. $/+%]+$', data):
+                return False, "CODE39 supports only: 0-9, A-Z, -, ., $, /, +, %, space"
+        
+        # CODE128 has more flexibility
+        elif barcode_type in ['CODE128', 'CODE-128']:
+            if len(data) > 80:
+                return False, "CODE128 data too long (max 80 characters)"
+        
+        # For other types, just check length isn't excessive
+        else:
+            if len(data) > 100:
+                return False, "Barcode data too long"
+        
+        return True, None
     
     def print_receipt(self, receipt_data, width: int = 48):
         """
