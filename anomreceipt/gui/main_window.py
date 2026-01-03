@@ -32,6 +32,9 @@ logger = logging.getLogger(__name__)
 BARCODE_MARKUP_PATTERN = r'>BARCODE\s+([A-Z0-9-]+)\s+([A-Za-z0-9]+)>(.*)'
 BARCODE_VISUAL_PATTERN = r'\[BARCODE\s+([A-Z0-9-]+):\s+([A-Za-z0-9]+)\]'
 
+# Image replacement characters that appear when HTML <img> tags are converted to plain text
+IMAGE_REPLACEMENT_CHARS = ['?', '�', '☐', '⊠', '▯', '□']
+
 
 class NetworkDialog(QDialog):
     """Dialog for network printer connection"""
@@ -1068,16 +1071,15 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'edit_toggle') and self.edit_toggle.isChecked():
             content = self.preview_text.toPlainText()
             
-            # Filter out image replacement characters (?, �, boxes, etc.)
+            # Filter out image replacement characters
             # These appear when HTML <img> tags are converted to plain text
-            # Common replacement characters: ? (U+003F), � (U+FFFD), ☐ (U+2610), ⊠ (U+22A0)
             filtered_lines = []
             for line in content.split('\n'):
                 # Skip lines that are just image replacement characters
-                if line.strip() in ['?', '�', '☐', '⊠', '▯', '□']:
+                if line.strip() in IMAGE_REPLACEMENT_CHARS:
                     continue
                 # Remove leading/trailing image replacement chars
-                line = line.strip('?�☐⊠▯□')
+                line = line.strip(''.join(IMAGE_REPLACEMENT_CHARS))
                 filtered_lines.append(line)
             content = '\n'.join(filtered_lines)
             

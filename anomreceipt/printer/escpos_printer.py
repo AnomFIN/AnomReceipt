@@ -6,8 +6,12 @@ Supports USB and network (IP) connections
 from escpos.printer import Usb, Network
 from escpos.exceptions import USBNotFoundError
 import logging
+import re
 
 logger = logging.getLogger(__name__)
+
+# Barcode markup regex pattern (matches >BARCODE TYPE DATA>)
+BARCODE_MARKUP_PATTERN = r'^>BARCODE\s+([A-Z0-9-]+)\s+([A-Za-z0-9]+)>(.*)$'
 
 
 class ESCPOSPrinter:
@@ -249,12 +253,8 @@ class ESCPOSPrinter:
             Tuple of (is_barcode, barcode_type, barcode_data, remaining_text)
             If not a barcode, returns (False, None, None, text)
         """
-        import re
-        
-        # Match barcode markup pattern
-        # Pattern: >BARCODE <TYPE> <DATA>>
-        pattern = r'^>BARCODE\s+([A-Z0-9-]+)\s+([A-Za-z0-9]+)>(.*)$'
-        match = re.match(pattern, text.strip())
+        # Match barcode markup pattern using shared constant
+        match = re.match(BARCODE_MARKUP_PATTERN, text.strip())
         
         if match:
             barcode_type = match.group(1)
@@ -294,17 +294,16 @@ class ESCPOSPrinter:
             if len(data) != 8 or not data.isdigit():
                 return False, "EAN8 requires exactly 8 digits"
         
-        # UPC-A requires exactly 12 digits
+        # UPC-A requires exactly 12 digits (supports multiple format variations)
         elif barcode_type in ['UPC-A', 'UPCA', 'UPC_A']:
             if len(data) != 12 or not data.isdigit():
-                return False, "UPC-A requires exactly 12 digits"
+                return False, f"{barcode_type} requires exactly 12 digits"
         
         # CODE39 allows alphanumeric but has length limits
         elif barcode_type in ['CODE39', 'CODE-39']:
             if len(data) > 43:
                 return False, "CODE39 data too long (max 43 characters)"
             # CODE39 supports: 0-9, A-Z, and special chars (-, ., $, /, +, %, space)
-            import re
             if not re.match(r'^[0-9A-Z\-. $/+%]+$', data):
                 return False, "CODE39 supports only: 0-9, A-Z, -, ., $, /, +, %, space"
         
