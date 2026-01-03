@@ -30,8 +30,9 @@ logger = logging.getLogger(__name__)
 
 # Barcode markup regex patterns (shared constants)
 # Pattern uses anchors (^ and $) for exact matching with re.match()
-BARCODE_MARKUP_PATTERN = r'^>BARCODE\s+([A-Z0-9-]+)\s+([A-Za-z0-9]+)>(.*)$'
-BARCODE_VISUAL_PATTERN = r'^\[BARCODE\s+([A-Z0-9-]+):\s+([A-Za-z0-9]+)\]$'
+# Data part uses uppercase A-Z and 0-9 to match validation rules
+BARCODE_MARKUP_PATTERN = r'^>BARCODE\s+([A-Z0-9-]+)\s+([A-Z0-9]+)>(.*)$'
+BARCODE_VISUAL_PATTERN = r'^\[BARCODE\s+([A-Z0-9-]+):\s+([A-Z0-9]+)\]$'
 
 # Image replacement characters that appear when HTML <img> tags are converted to plain text
 IMAGE_REPLACEMENT_CHARS = ['?', '�', '☐', '⊠', '▯', '□']
@@ -1108,12 +1109,14 @@ class MainWindow(QMainWindow):
                             if not self.printer.print_text(line + '\n'):
                                 ok = False
                                 break
-                    elif line.strip() and not line.strip().startswith('|'):
+                    else:
                         # Skip barcode visual bars (lines starting with |)
                         # Print regular text lines
-                        if not self.printer.print_text(line + '\n'):
-                            ok = False
-                            break
+                        stripped_line = line.strip()
+                        if stripped_line and not stripped_line.startswith('|'):
+                            if not self.printer.print_text(line + '\n'):
+                                ok = False
+                                break
             if ok and self.printer.is_connected():
                 self.printer.feed_lines(3)
                 self.printer.cut_paper()

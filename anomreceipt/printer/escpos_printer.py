@@ -11,7 +11,8 @@ import re
 logger = logging.getLogger(__name__)
 
 # Barcode markup regex pattern (matches >BARCODE TYPE DATA>)
-BARCODE_MARKUP_PATTERN = r'^>BARCODE\s+([A-Z0-9-]+)\s+([A-Za-z0-9]+)>(.*)$'
+# Allows digits and uppercase letters for data (most barcode types use these)
+BARCODE_MARKUP_PATTERN = r'^>BARCODE\s+([A-Z0-9-]+)\s+([A-Z0-9]+)>(.*)$'
 
 
 class ESCPOSPrinter:
@@ -297,14 +298,15 @@ class ESCPOSPrinter:
         # UPC-A requires exactly 12 digits (supports multiple format variations)
         elif barcode_type in ['UPC-A', 'UPCA', 'UPC_A']:
             if len(data) != 12 or not data.isdigit():
-                return False, f"{barcode_type} requires exactly 12 digits"
+                return False, "UPC-A requires exactly 12 digits"
         
         # CODE39 allows alphanumeric but has length limits
         elif barcode_type in ['CODE39', 'CODE-39']:
             if len(data) > 43:
                 return False, "CODE39 data too long (max 43 characters)"
             # CODE39 supports: 0-9, A-Z, and special chars (-, ., $, /, +, %, space)
-            if not re.match(r'^[0-9A-Z\-. $/+%]+$', data):
+            # Hyphen at end of character class for clarity
+            if not re.match(r'^[0-9A-Z. $/+%-]+$', data):
                 return False, "CODE39 supports only: 0-9, A-Z, -, ., $, /, +, %, space"
         
         # CODE128 has more flexibility
