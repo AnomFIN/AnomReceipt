@@ -29,8 +29,9 @@ except Exception:
 logger = logging.getLogger(__name__)
 
 # Barcode markup regex patterns (shared constants)
-BARCODE_MARKUP_PATTERN = r'>BARCODE\s+([A-Z0-9-]+)\s+([A-Za-z0-9]+)>(.*)'
-BARCODE_VISUAL_PATTERN = r'\[BARCODE\s+([A-Z0-9-]+):\s+([A-Za-z0-9]+)\]'
+# Pattern uses anchors (^ and $) for exact matching with re.match()
+BARCODE_MARKUP_PATTERN = r'^>BARCODE\s+([A-Z0-9-]+)\s+([A-Za-z0-9]+)>(.*)$'
+BARCODE_VISUAL_PATTERN = r'^\[BARCODE\s+([A-Z0-9-]+):\s+([A-Za-z0-9]+)\]$'
 
 # Image replacement characters that appear when HTML <img> tags are converted to plain text
 IMAGE_REPLACEMENT_CHARS = ['?', '�', '☐', '⊠', '▯', '□']
@@ -1092,10 +1093,10 @@ class MainWindow(QMainWindow):
                 for line in content.split('\n'):
                     # Check for barcode markup or barcode visual representation
                     # Visual format from preview: [BARCODE TYPE: DATA]
-                    visual_match = re.search(BARCODE_VISUAL_PATTERN, line)
+                    visual_match = re.match(BARCODE_VISUAL_PATTERN, line.strip())
                     
                     # Original markup format: >BARCODE TYPE DATA>
-                    markup_match = re.search(BARCODE_MARKUP_PATTERN, line)
+                    markup_match = re.match(BARCODE_MARKUP_PATTERN, line.strip())
                     
                     if visual_match or markup_match:
                         match = visual_match if visual_match else markup_match
