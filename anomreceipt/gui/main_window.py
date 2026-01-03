@@ -951,7 +951,36 @@ class MainWindow(QMainWindow):
                     i += receipt_width
 
         # Render HTML with image + preformatted text for alignment
-        escaped = '\n'.join(wrapped).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        # Handle barcode markup by converting to visual representation
+        escaped_lines = []
+        for line in wrapped:
+            # Check for barcode markup: >BARCODE TYPE DATA>
+            if line.strip().startswith('>BARCODE '):
+                # Parse barcode
+                import re
+                pattern = r'>BARCODE\s+([A-Z0-9-]+)\s+([A-Za-z0-9]+)>(.*)'
+                match = re.match(pattern, line.strip())
+                if match:
+                    bc_type = match.group(1)
+                    bc_data = match.group(2)
+                    remaining = match.group(3)
+                    # Create visual barcode representation for preview
+                    # Use a simple ASCII art representation
+                    barcode_visual = f"[BARCODE {bc_type}: {bc_data}]"
+                    barcode_visual = barcode_visual.center(receipt_width)
+                    # Add visual bars
+                    bars = '|' + '| ' * (len(bc_data)) + '|'
+                    bars = bars.center(receipt_width)
+                    escaped_lines.append(bars)
+                    escaped_lines.append(barcode_visual)
+                    if remaining:
+                        escaped_lines.append(remaining.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;'))
+                    continue
+            
+            # Regular line - escape HTML
+            escaped_lines.append(line.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;'))
+        
+        escaped = '\n'.join(escaped_lines)
         html = img_html + f"<pre style=\"font-family:'Courier New',monospace; font-size:12px; white-space: pre;\">{escaped}</pre>"
         self.preview_text.setHtml(html)
 
@@ -1054,10 +1083,33 @@ class MainWindow(QMainWindow):
                 if ok:
                     self.printer.feed_lines(1)
             if ok:
+                import re
                 for line in content.split('\n'):
-                    if not self.printer.print_text(line + '\n'):
-                        ok = False
-                        break
+                    # Check for barcode markup or barcode visual representation
+                    # Visual format from preview: [BARCODE TYPE: DATA]
+                    visual_pattern = r'\[BARCODE\s+([A-Z0-9-]+):\s+([A-Za-z0-9]+)\]'
+                    visual_match = re.search(visual_pattern, line)
+                    
+                    # Original markup format: >BARCODE TYPE DATA>
+                    markup_pattern = r'>BARCODE\s+([A-Z0-9-]+)\s+([A-Za-z0-9]+)>'
+                    markup_match = re.search(markup_pattern, line)
+                    
+                    if visual_match or markup_match:
+                        match = visual_match if visual_match else markup_match
+                        bc_type = match.group(1)
+                        bc_data = match.group(2)
+                        # Try to print barcode
+                        if not self.printer.print_barcode(bc_data, bc_type):
+                            # Fallback to text if barcode fails
+                            if not self.printer.print_text(line + '\n'):
+                                ok = False
+                                break
+                    elif line.strip() and not line.strip().startswith('|'):
+                        # Skip barcode visual bars (lines starting with |)
+                        # Print regular text lines
+                        if not self.printer.print_text(line + '\n'):
+                            ok = False
+                            break
             if ok and self.printer.is_connected():
                 self.printer.feed_lines(3)
                 self.printer.cut_paper()

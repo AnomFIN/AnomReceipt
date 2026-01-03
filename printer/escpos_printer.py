@@ -145,9 +145,65 @@ class EpsonTM70Printer:
             except Exception:
                 pass
             self.printer.image(image_path)
+            # Reset alignment after image
+            try:
+                self.printer.set(align='left')
+            except Exception:
+                pass
             return True
         except Exception as e:
             logger.error(f"Failed to print image: {e}")
+            return False
+    
+    def print_barcode(self, data: str, barcode_type: str = 'EAN13') -> bool:
+        """
+        Print a barcode.
+        
+        Args:
+            data: Barcode data (e.g., '1234567890123' for EAN13)
+            barcode_type: Type of barcode (EAN13, EAN8, UPC-A, CODE39, etc.)
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self._is_connected or not self.printer:
+            logger.error("Printer not connected")
+            return False
+        
+        try:
+            # Center the barcode
+            try:
+                self.printer.set(align='center')
+            except Exception:
+                pass
+            
+            # Print the barcode
+            self.printer.barcode(data, barcode_type)
+            
+            # Reset alignment
+            try:
+                self.printer.set(align='left')
+            except Exception:
+                pass
+            
+            logger.info(f"Barcode printed: {barcode_type} - {data}")
+            return True
+        except Exception as e:
+            logger.error(f"Error printing barcode: {e}")
+            return False
+        
+    def print_text(self, text: str) -> bool:
+        """
+        Print plain text.
+        
+        Args:
+            text: Text to print
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self._is_connected or not self.printer:
+            logger.error("Printer not connected")
             return False
         
         try:

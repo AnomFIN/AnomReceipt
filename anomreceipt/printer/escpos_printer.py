@@ -169,6 +169,44 @@ class ESCPOSPrinter:
             logger.error(f"Error printing image: {e}")
             return False
             
+    def print_barcode(self, data: str, barcode_type: str = 'EAN13') -> bool:
+        """
+        Print a barcode.
+        
+        Args:
+            data: Barcode data (e.g., '1234567890123' for EAN13)
+            barcode_type: Type of barcode (EAN13, EAN8, UPC-A, CODE39, etc.)
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.is_connected():
+            logger.warning("Cannot print barcode: not connected")
+            return False
+        
+        try:
+            # Center the barcode
+            try:
+                self.printer.set(align='center')
+            except Exception:
+                pass
+            
+            # Print the barcode
+            # python-escpos supports various barcode types
+            self.printer.barcode(data, barcode_type)
+            
+            # Reset alignment
+            try:
+                self.printer.set(align='left')
+            except Exception:
+                pass
+            
+            logger.info(f"Barcode printed: {barcode_type} - {data}")
+            return True
+        except Exception as e:
+            logger.error(f"Error printing barcode: {e}")
+            return False
+            
     def feed_lines(self, lines=1):
         """Feed paper by specified number of lines"""
         if self.is_connected():
@@ -194,6 +232,38 @@ class ESCPOSPrinter:
                 return False
         return False
         
+    def _parse_barcode_markup(self, text: str) -> tuple:
+        """
+        Parse barcode markup from text.
+        
+        Markup format: >BARCODE TYPE DATA>
+        Examples:
+          >BARCODE EAN13 1234567890123>
+          >BARCODE CODE39 ABC123>
+          >BARCODE EAN8 12345678>
+        
+        Args:
+            text: Text that may contain barcode markup
+        
+        Returns:
+            Tuple of (is_barcode, barcode_type, barcode_data, remaining_text)
+            If not a barcode, returns (False, None, None, text)
+        """
+        import re
+        
+        # Match barcode markup pattern
+        # Pattern: >BARCODE <TYPE> <DATA>>
+        pattern = r'^>BARCODE\s+([A-Z0-9-]+)\s+([A-Za-z0-9]+)>(.*)$'
+        match = re.match(pattern, text.strip())
+        
+        if match:
+            barcode_type = match.group(1)
+            barcode_data = match.group(2)
+            remaining = match.group(3).strip()
+            return True, barcode_type, barcode_data, remaining
+        
+        return False, None, None, text
+    
     def print_receipt(self, receipt_data, width: int = 48):
         """
         Print a complete receipt from structured data
@@ -234,9 +304,24 @@ class ESCPOSPrinter:
             # Print header
             if receipt_data.get('header'):
                 for line in receipt_data['header']:
-                    for chunk in wrap_line(line, width):
-                        if not self.print_text(chunk + '\n', align='center', bold=True):
-                            return False
+                    # Check for barcode markup
+                    is_barcode, bc_type, bc_data, remaining = self._parse_barcode_markup(line)
+                    if is_barcode:
+                        # Print the barcode
+                        if not self.print_barcode(bc_data, bc_type):
+                            logger.warning(f"Failed to print barcode, falling back to text")
+                            # Fallback: print as text
+                            if not self.print_text(line + '\n', align='center', bold=True):
+                                return False
+                        # Print any remaining text on the line
+                        if remaining:
+                            if not self.print_text(remaining + '\n', align='center', bold=True):
+                                return False
+                    else:
+                        # Regular text line
+                        for chunk in wrap_line(line, width):
+                            if not self.print_text(chunk + '\n', align='center', bold=True):
+                                return False
                 self.print_line(length=width)
                 
             # Print items
@@ -262,9 +347,24 @@ class ESCPOSPrinter:
             # Print footer
             if receipt_data.get('footer'):
                 for line in receipt_data['footer']:
-                    for chunk in wrap_line(line, width):
-                        if not self.print_text(chunk + '\n'):
-                            return False
+                    # Check for barcode markup
+                    is_barcode, bc_type, bc_data, remaining = self._parse_barcode_markup(line)
+                    if is_barcode:
+                        # Print the barcode
+                        if not self.print_barcode(bc_data, bc_type):
+                            logger.warning(f"Failed to print barcode, falling back to text")
+                            # Fallback: print as text
+                            if not self.print_text(line + '\n'):
+                                return False
+                        # Print any remaining text on the line
+                        if remaining:
+                            if not self.print_text(remaining + '\n'):
+                                return False
+                    else:
+                        # Regular text line
+                        for chunk in wrap_line(line, width):
+                            if not self.print_text(chunk + '\n'):
+                                return False
                     
             # Feed and cut
             if self.is_connected():
