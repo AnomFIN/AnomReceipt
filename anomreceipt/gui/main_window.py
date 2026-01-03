@@ -1034,6 +1034,20 @@ class MainWindow(QMainWindow):
         # If user is editing preview, print exactly what's shown
         if hasattr(self, 'edit_toggle') and self.edit_toggle.isChecked():
             content = self.preview_text.toPlainText()
+            
+            # Filter out image replacement characters (?, �, boxes, etc.)
+            # These appear when HTML <img> tags are converted to plain text
+            # Common replacement characters: ? (U+003F), � (U+FFFD), ☐ (U+2610), ⊠ (U+22A0)
+            filtered_lines = []
+            for line in content.split('\n'):
+                # Skip lines that are just image replacement characters
+                if line.strip() in ['?', '�', '☐', '⊠', '▯', '□']:
+                    continue
+                # Remove leading/trailing image replacement chars
+                line = line.strip('?�☐⊠▯□')
+                filtered_lines.append(line)
+            content = '\n'.join(filtered_lines)
+            
             ok = True
             if getattr(self.current_template, 'logo_image', None):
                 ok = self.printer.print_image(self.current_template.logo_image)

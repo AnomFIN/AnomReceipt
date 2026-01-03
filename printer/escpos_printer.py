@@ -296,8 +296,16 @@ class EpsonTM70Printer:
                         self.printer.image(path)
                     except Exception as e:
                         logger.error(f"Image print failed: {e}")
+                    # Reset alignment after image
+                    try:
+                        self.printer.set(align='left')
+                    except Exception:
+                        pass
                     continue
                 text = seg
+                # Skip empty text segments
+                if not text or not text.strip():
+                    continue
                 try:
                     # Try explicit bold/italic flags
                     self.printer.set(font='a', width=scale, height=scale, bold=bool(bold), italic=bool(italic))
