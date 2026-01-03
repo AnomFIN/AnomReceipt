@@ -433,3 +433,149 @@ class ESCPOSPrinter:
         except Exception as e:
             logger.error(f"Error printing receipt: {e}")
             return False
+    
+    def print_rich_html(self, html: str) -> bool:
+        """
+        Print HTML with formatting (bold, italic, font size).
+        Supports <b>/<strong>, <i>/<em>, and font-size styling.
+        
+        Args:
+            html: HTML content to print
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.is_connected():
+            logger.warning("Cannot print HTML: not connected")
+            return False
+        
+        try:
+            from html.parser import HTMLParser
+            
+            class _Parser(HTMLParser):
+                def __init__(self):
+                    super().__init__()
+                    self.segments = []  # list of (text|('IMG',path)|('BARCODE',type,data), bold, italic, scale)
+                    self.bold = False
+                    self.italic = False
+                    self.scale = 1
+                    self._buf = []
+                
+                def flush(self):
+                    if self._buf:
+                        text = ''.join(self._buf)
+                        self.segments.append((text, self.bold, self.italic, self.scale))
+                        self._buf = []
+                
+                def handle_starttag(self, tag, attrs):
+                    if tag in ('b', 'strong'):
+                        self.flush()
+                        self.bold = True
+                    elif tag in ('i', 'em'):
+                        self.flush()
+                        self.italic = True
+                    elif tag == 'br':
+                        self._buf.append('\n')
+                    elif tag in ('p', 'div'):
+                        self._buf.append('\n')
+                    elif tag == 'img':
+                        # Output pending text then add image segment
+                        self.flush()
+                        src = dict(attrs).get('src')
+                        if src and src.startswith('file://'):
+                            path = src[len('file://'):]
+                            self.segments.append((('IMG', path), self.bold, self.italic, self.scale))
+                    elif tag == 'span':
+                        # Look for style font-size
+                        style = dict(attrs).get('style', '')
+                        size = None
+                        for part in style.split(';'):
+                            if 'font-size' in part:
+                                try:
+                                    size_val = part.split(':', 1)[1].strip()
+                                    if size_val.endswith('px'):
+                                        size = int(float(size_val[:-2]))
+                                    else:
+                                        size = int(float(size_val))
+                                except Exception:
+                                    pass
+                        if size:
+                            self.flush()
+                            # Map size to scale multiplier
+                            if size >= 18:
+                                scale = 2
+                            else:
+                                scale = 1
+                            self.scale = max(1, min(8, scale))
+                
+                def handle_endtag(self, tag):
+                    if tag in ('b', 'strong'):
+                        self.flush()
+                        self.bold = False
+                    elif tag in ('i', 'em'):
+                        self.flush()
+                        self.italic = False
+                    elif tag == 'span':
+                        self.flush()
+                        self.scale = 1
+                    elif tag in ('p', 'div'):
+                        self._buf.append('\n')
+                
+                def handle_data(self, data):
+                    self._buf.append(data)
+                
+                def close(self):
+                    self.flush()
+                    super().close()
+            
+            parser = _Parser()
+            parser.feed(html)
+            parser.close()
+            
+            # Print each segment with appropriate formatting
+            for seg, bold, italic, scale in parser.segments:
+                # Handle image
+                if isinstance(seg, tuple) and seg and seg[0] == 'IMG':
+                    path = seg[1]
+                    if not self.print_image(path):
+                        logger.warning(f"Failed to print image: {path}")
+                    continue
+                
+                # Handle barcode (detect barcode markup in text)
+                text = seg
+                if text:
+                    # Check for barcode markup
+                    is_barcode, bc_type, bc_data, remaining = self._parse_barcode_markup(text.strip())
+                    if is_barcode:
+                        if not self.print_barcode(bc_data, bc_type):
+                            logger.warning(f"Failed to print barcode, printing as text")
+                            # Fallback to text
+                            if not self.print_text(text, bold=bold):
+                                return False
+                        if remaining:
+                            if not self.print_text(remaining, bold=bold):
+                                return False
+                        continue
+                
+                # Skip empty text segments
+                if not text or not text.strip():
+                    continue
+                
+                # Print text with formatting
+                # Map italic to nothing (most ESC/POS printers don't support italic)
+                # Use double_width and double_height for scale
+                double_width = (scale >= 2)
+                double_height = (scale >= 2)
+                
+                if not self.print_text(text, bold=bold, double_width=double_width, double_height=double_height):
+                    return False
+            
+            # Feed and cut
+            if self.is_connected():
+                self.feed_lines(3)
+                self.cut_paper()
+            
+            return True
+        except Exception as e:
+            logger.error(f"Error printing HTML: {e}", exc_info=True)
+            return False

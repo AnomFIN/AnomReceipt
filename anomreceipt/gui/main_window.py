@@ -447,14 +447,14 @@ class MainWindow(QMainWindow):
         url_found = None
         for url in candidates:
             try:
-                r = requests.get(url, headers=headers, timeout=10)
+                r = requests.get(url, headers=headers, timeout=20)
                 if r.status_code == 200:
                     if 'duckduckgo.com' in url:
                         soup = BeautifulSoup(r.text, 'html.parser')
                         a = soup.select_one('a.result__a, a.result__url')
                         if a and a.get('href'):
                             url_found = a.get('href')
-                            rr = requests.get(url_found, headers=headers, timeout=10)
+                            rr = requests.get(url_found, headers=headers, timeout=20)
                             if rr.status_code == 200:
                                 html = rr.text
                                 break
@@ -1071,55 +1071,12 @@ class MainWindow(QMainWindow):
             
         # If user is editing preview, print exactly what's shown
         if hasattr(self, 'edit_toggle') and self.edit_toggle.isChecked():
-            content = self.preview_text.toPlainText()
+            # Get HTML to preserve formatting (bold, italic, font size)
+            html_content = self.preview_text.toHtml()
             
-            # Filter out image replacement characters
-            # These appear when HTML <img> tags are converted to plain text
-            filtered_lines = []
-            for line in content.split('\n'):
-                # Skip lines that are just image replacement characters
-                if line.strip() in IMAGE_REPLACEMENT_CHARS:
-                    continue
-                # Remove leading/trailing image replacement chars
-                line = line.strip(''.join(IMAGE_REPLACEMENT_CHARS))
-                filtered_lines.append(line)
-            content = '\n'.join(filtered_lines)
+            # Print using rich HTML method which preserves formatting
+            ok = self.printer.print_rich_html(html_content)
             
-            ok = True
-            if getattr(self.current_template, 'logo_image', None):
-                ok = self.printer.print_image(self.current_template.logo_image)
-                if ok:
-                    self.printer.feed_lines(1)
-            if ok:
-                for line in content.split('\n'):
-                    # Check for barcode markup or barcode visual representation
-                    # Visual format from preview: [BARCODE TYPE: DATA]
-                    visual_match = re.match(BARCODE_VISUAL_PATTERN, line.strip())
-                    
-                    # Original markup format: >BARCODE TYPE DATA>
-                    markup_match = re.match(BARCODE_MARKUP_PATTERN, line.strip())
-                    
-                    if visual_match or markup_match:
-                        match = visual_match if visual_match else markup_match
-                        bc_type = match.group(1)
-                        bc_data = match.group(2)
-                        # Try to print barcode
-                        if not self.printer.print_barcode(bc_data, bc_type):
-                            # Fallback to text if barcode fails
-                            if not self.printer.print_text(line + '\n'):
-                                ok = False
-                                break
-                    else:
-                        # Skip barcode visual bars (lines starting with |)
-                        # Print regular text lines
-                        stripped_line = line.strip()
-                        if stripped_line and not stripped_line.startswith('|'):
-                            if not self.printer.print_text(line + '\n'):
-                                ok = False
-                                break
-            if ok and self.printer.is_connected():
-                self.printer.feed_lines(3)
-                self.printer.cut_paper()
             if ok:
                 QMessageBox.information(self, self.translator.translate('success'),
                                       self.translator.translate('print_success'))
