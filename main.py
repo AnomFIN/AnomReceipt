@@ -44,7 +44,7 @@ def main():
         window.show()
         
         # Run application
-        exit_code = app.exec_()
+        exit_code = app.exec()
         
         return exit_code
     
