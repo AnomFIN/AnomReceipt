@@ -11,8 +11,8 @@ import re
 logger = logging.getLogger(__name__)
 
 # Barcode markup regex pattern (matches >BARCODE TYPE DATA>)
-# Allows digits and uppercase letters for data (most barcode types use these)
-BARCODE_MARKUP_PATTERN = r'^>BARCODE\s+([A-Z0-9-]+)\s+([A-Z0-9]+)>(.*)$'
+# Allows CODE39-compatible characters (letters, digits, space, and - . $ / + %)
+BARCODE_MARKUP_PATTERN = r'^>BARCODE\s+([A-Z0-9-]+)\s+([A-Za-z0-9. $/+%-]+)>(.*)$'
 
 
 class ESCPOSPrinter:
