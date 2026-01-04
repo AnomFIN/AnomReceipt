@@ -171,20 +171,20 @@ class EpsonTM70Printer:
             return False
         
         try:
-            # Center the barcode
+            # Center the barcode; if this fails, continue printing but log the issue.
             try:
                 self.printer.set(align='center')
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to set printer alignment to center before barcode: %s", e)
             
             # Print the barcode
             self.printer.barcode(data, barcode_type)
             
-            # Reset alignment
+            # Reset alignment; if this fails, continue but log the issue.
             try:
                 self.printer.set(align='left')
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to reset printer alignment to left after barcode: %s", e)
             
             logger.info(f"Barcode printed: {barcode_type} - {data}")
             return True
