@@ -142,14 +142,14 @@ class EpsonTM70Printer:
             # Center align and print image
             try:
                 self.printer.set(align='center')
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Ignoring alignment error when centering image: {e}")
             self.printer.image(image_path)
             # Reset alignment after image
             try:
                 self.printer.set(align='left')
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Ignoring alignment error when resetting to left after image: {e}")
             return True
         except Exception as e:
             logger.error(f"Failed to print image: {e}")
