@@ -359,8 +359,9 @@ class EpsonTM70Printer:
                                         size = int(float(size_val[:-2]))
                                     else:
                                         size = int(float(size_val))
-                                except Exception:
-                                    pass
+                                except (ValueError, TypeError) as exc:
+                                    # Ignore invalid or non-numeric font-size values; fall back to default scale.
+                                    logger.debug("Ignoring invalid font-size value in style '%s': %s", part, exc)
                         if size:
                             self.flush()
                             # Map size to scale multiplier
@@ -401,8 +402,9 @@ class EpsonTM70Printer:
                     path = seg[1]
                     try:
                         self.printer.set(align='center')
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        # Ignore alignment errors; some printers don't support alignment commands
+                        logger.debug(f"Failed to center-align before image: {e}")
                     try:
                         self.printer.image(path)
                     except Exception as e:
@@ -422,6 +424,7 @@ class EpsonTM70Printer:
                     # Try explicit bold/italic flags
                     self.printer.set(font='a', width=scale, height=scale, bold=bool(bold), italic=bool(italic))
                 except Exception:
+                    # Fall back to text_type parameter if bold/italic flags not supported
                     try:
                         # Some backends support text_type string
                         text_type = ''
@@ -433,6 +436,7 @@ class EpsonTM70Printer:
                             text_type = None
                         self.printer.set(font='a', width=scale, height=scale, text_type=text_type)
                     except Exception:
+                        # Fall back to basic formatting without bold/italic
                         self.printer.set(font='a', width=scale, height=scale)
                 self.printer.text(text)
 
