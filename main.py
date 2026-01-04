@@ -5,6 +5,7 @@ Main entry point with comprehensive error handling
 """
 
 import sys
+import traceback
 from pathlib import Path
 
 try:
@@ -51,7 +52,6 @@ def main():
     except Exception as e:
         error_msg = f"Fatal error during application startup: {e}"
         print(f"\n{error_msg}")
-        import traceback
         traceback.print_exc()
         
         return 1

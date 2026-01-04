@@ -1,5 +1,4 @@
 PyQt5>=5.15.0
-PySide6>=6.5.0
 PyYAML>=6.0
 python-escpos>=3.0
 pillow>=10.3.0
