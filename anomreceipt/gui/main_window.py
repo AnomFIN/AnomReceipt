@@ -37,6 +37,25 @@ BARCODE_MARKUP_PATTERN = r'^>BARCODE\s+([A-Z0-9-]+)\s+([A-Z0-9]+)>(.*)$'
 IMAGE_REPLACEMENT_CHARS = ['?', '�', '☐', '⊠', '▯', '□']
 
 
+def filter_image_replacement_chars(text):
+    """
+    Remove characters that are typically inserted when Qt's toPlainText()
+    converts HTML <img> tags into plain text.
+
+    This helper is intended to be used on text extracted from rich text editors
+    before printing or further processing, to avoid stray placeholder glyphs
+    from images appearing in output.
+
+    :param text: Input text potentially containing image replacement characters.
+    :return: Text with all image replacement characters removed.
+    """
+    if not isinstance(text, str) or not text:
+        return text
+
+    # Build a translation table that maps each replacement character to None,
+    # then use str.translate for an efficient bulk removal.
+    translation_table = {ord(c): None for c in IMAGE_REPLACEMENT_CHARS}
+    return text.translate(translation_table)
 class NetworkDialog(QDialog):
     """Dialog for network printer connection"""
     
