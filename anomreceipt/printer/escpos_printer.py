@@ -497,8 +497,9 @@ class ESCPOSPrinter:
                                         size = int(float(size_val[:-2]))
                                     else:
                                         size = int(float(size_val))
-                                except Exception:
-                                    pass
+                                except (ValueError, TypeError) as exc:
+                                    # Ignore invalid or non-numeric font-size values; fall back to default scale.
+                                    logger.debug("Ignoring invalid font-size value in style '%s': %s", part, exc)
                         if size:
                             self.flush()
                             # Map size to scale multiplier
