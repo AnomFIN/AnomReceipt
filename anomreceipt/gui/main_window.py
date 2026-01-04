@@ -977,7 +977,7 @@ class MainWindow(QMainWindow):
                     # Add visual bars with limited width
                     # Limit bar count to avoid excessive width (max 20 bars)
                     bar_count = min(len(bc_data), 20)
-                    bars = '|' + '| ' * bar_count + '|'
+                    bars = '|' * bar_count
                     bars = bars.center(receipt_width)
                     escaped_lines.append(bars)
                     escaped_lines.append(barcode_visual)
