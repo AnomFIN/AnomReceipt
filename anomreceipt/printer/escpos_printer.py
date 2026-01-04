@@ -549,11 +549,11 @@ class ESCPOSPrinter:
                     if is_barcode:
                         if not self.print_barcode(bc_data, bc_type):
                             logger.warning(f"Failed to print barcode, printing as text")
-                            # Fallback to text
-                            if not self.print_text(text, bold=bold):
+                            # Fallback to text, preserving scale-based sizing
+                            if not self.print_text(text, bold=bold, double_width=(scale >= 2), double_height=(scale >= 2)):
                                 return False
                         if remaining:
-                            if not self.print_text(remaining, bold=bold):
+                            if not self.print_text(remaining, bold=bold, double_width=(scale >= 2), double_height=(scale >= 2)):
                                 return False
                         continue
                 
