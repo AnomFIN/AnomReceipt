@@ -30,8 +30,8 @@ logger = logging.getLogger(__name__)
 
 # Barcode markup regex patterns (shared constants)
 # Pattern uses anchors (^ and $) for exact matching with re.match()
-# Data part uses uppercase A-Z and 0-9 to match validation rules
-BARCODE_MARKUP_PATTERN = r'^>BARCODE\s+([A-Z0-9-]+)\s+([A-Z0-9]+)>(.*)$'
+# Data part allows CODE39 characters: A-Z, 0-9, space, and - . $ / + %
+BARCODE_MARKUP_PATTERN = r'^>BARCODE\s+([A-Z0-9-]+)\s+([A-Z0-9 .$/+%-]+)>(.*)$'
 
 # Image replacement characters that appear when HTML <img> tags are converted to plain text
 IMAGE_REPLACEMENT_CHARS = ['?', '�', '☐', '⊠', '▯', '□']

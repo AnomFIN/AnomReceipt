@@ -193,8 +193,9 @@ class ESCPOSPrinter:
             # Center the barcode
             try:
                 self.printer.set(align='center')
-            except Exception:
-                pass
+            except Exception as e:
+                # Ignore alignment errors; some printers don't support alignment commands
+                logger.debug(f"Failed to set alignment to center before barcode: {e}")
             
             # Print the barcode
             # python-escpos supports various barcode types
@@ -203,8 +204,9 @@ class ESCPOSPrinter:
             # Reset alignment
             try:
                 self.printer.set(align='left')
-            except Exception:
-                pass
+            except Exception as e:
+                # Ignore alignment errors; some printers don't support alignment commands
+                logger.debug(f"Failed to reset alignment to left after barcode: {e}")
             
             logger.info(f"Barcode printed: {barcode_type} - {data}")
             return True
@@ -305,7 +307,7 @@ class ESCPOSPrinter:
             if len(data) > 43:
                 return False, "CODE39 data too long (max 43 characters)"
             # CODE39 supports: 0-9, A-Z, and special chars (-, ., $, /, +, %, space)
-            # Hyphen at end of character class for clarity
+            # Hyphen positioned at end of character class to be interpreted as literal
             if not re.match(r'^[0-9A-Z. $/+%-]+$', data):
                 return False, "CODE39 supports only: 0-9, A-Z, -, ., $, /, +, %, space"
         
@@ -456,6 +458,9 @@ class ESCPOSPrinter:
                 def __init__(self):
                     super().__init__()
                     self.segments = []  # list of (text|('IMG',path)|('BARCODE',type,data), bold, italic, scale)
+                    self.bold_stack = []  # Stack to track bold state
+                    self.italic_stack = []  # Stack to track italic state
+                    self.scale_stack = []  # Stack to track scale state
                     self.bold = False
                     self.italic = False
                     self.scale = 1
@@ -470,9 +475,11 @@ class ESCPOSPrinter:
                 def handle_starttag(self, tag, attrs):
                     if tag in ('b', 'strong'):
                         self.flush()
+                        self.bold_stack.append(self.bold)
                         self.bold = True
                     elif tag in ('i', 'em'):
                         self.flush()
+                        self.italic_stack.append(self.italic)
                         self.italic = True
                     elif tag == 'br':
                         self._buf.append('\n')
@@ -502,6 +509,7 @@ class ESCPOSPrinter:
                                     logger.debug("Ignoring invalid font-size value in style '%s': %s", part, exc)
                         if size:
                             self.flush()
+                            self.scale_stack.append(self.scale)
                             # Map size to scale multiplier
                             if size >= 18:
                                 scale = 2
@@ -512,13 +520,16 @@ class ESCPOSPrinter:
                 def handle_endtag(self, tag):
                     if tag in ('b', 'strong'):
                         self.flush()
-                        self.bold = False
+                        # Restore previous bold state from stack
+                        self.bold = self.bold_stack.pop() if self.bold_stack else False
                     elif tag in ('i', 'em'):
                         self.flush()
-                        self.italic = False
+                        # Restore previous italic state from stack
+                        self.italic = self.italic_stack.pop() if self.italic_stack else False
                     elif tag == 'span':
                         self.flush()
-                        self.scale = 1
+                        # Restore previous scale state from stack
+                        self.scale = self.scale_stack.pop() if self.scale_stack else 1
                     elif tag in ('p', 'div'):
                         self._buf.append('\n')
                 

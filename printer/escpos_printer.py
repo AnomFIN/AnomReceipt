@@ -170,6 +170,12 @@ class EpsonTM70Printer:
             logger.error("Printer not connected")
             return False
         
+        # Validate barcode data before printing
+        valid, error_msg = self._validate_barcode(barcode_type, data)
+        if not valid:
+            logger.error(f"Invalid barcode data: {error_msg}")
+            return False
+        
         try:
             # Center the barcode; if this fails, continue printing but log the issue.
             try:
@@ -191,6 +197,55 @@ class EpsonTM70Printer:
         except Exception as e:
             logger.error(f"Error printing barcode: {e}")
             return False
+    
+    def _validate_barcode(self, barcode_type: str, data: str) -> tuple:
+        """
+        Validate barcode data for a given barcode type.
+        
+        Args:
+            barcode_type: Type of barcode (EAN13, EAN8, etc.)
+            data: Barcode data to validate
+        
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        barcode_type = barcode_type.upper()
+        
+        # EAN13 requires exactly 13 digits
+        if barcode_type == 'EAN13':
+            if len(data) != 13 or not data.isdigit():
+                return False, "EAN13 requires exactly 13 digits"
+        
+        # EAN8 requires exactly 8 digits
+        elif barcode_type == 'EAN8':
+            if len(data) != 8 or not data.isdigit():
+                return False, "EAN8 requires exactly 8 digits"
+        
+        # UPC-A requires exactly 12 digits
+        elif barcode_type in ['UPC-A', 'UPCA', 'UPC_A']:
+            if len(data) != 12 or not data.isdigit():
+                return False, "UPC-A requires exactly 12 digits"
+        
+        # CODE39 allows alphanumeric but has length limits
+        elif barcode_type in ['CODE39', 'CODE-39']:
+            if len(data) > 43:
+                return False, "CODE39 data too long (max 43 characters)"
+            # CODE39 supports: 0-9, A-Z, and special chars (-, ., $, /, +, %, space)
+            import re
+            if not re.match(r'^[0-9A-Z. $/+%-]+$', data):
+                return False, "CODE39 supports only: 0-9, A-Z, -, ., $, /, +, %, space"
+        
+        # CODE128 has more flexibility
+        elif barcode_type in ['CODE128', 'CODE-128']:
+            if len(data) > 80:
+                return False, "CODE128 data too long (max 80 characters)"
+        
+        # For other types, just check length isn't excessive
+        else:
+            if len(data) > 100:
+                return False, "Barcode data too long"
+        
+        return True, None
         
     def print_text(self, text: str) -> bool:
         """
@@ -355,8 +410,9 @@ class EpsonTM70Printer:
                     # Reset alignment after image
                     try:
                         self.printer.set(align='left')
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        # Ignore alignment errors; some printers don't support alignment commands
+                        logger.debug(f"Failed to reset alignment to left after image: {e}")
                     continue
                 text = seg
                 # Skip empty text segments
