@@ -142,12 +142,123 @@ class EpsonTM70Printer:
             # Center align and print image
             try:
                 self.printer.set(align='center')
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Ignoring alignment error when centering image: {e}")
             self.printer.image(image_path)
+            # Reset alignment after image
+            try:
+                self.printer.set(align='left')
+            except Exception as e:
+                logger.debug(f"Ignoring alignment error when resetting to left after image: {e}")
             return True
         except Exception as e:
             logger.error(f"Failed to print image: {e}")
+            return False
+    
+    def print_barcode(self, data: str, barcode_type: str = 'EAN13') -> bool:
+        """
+        Print a barcode.
+        
+        Args:
+            data: Barcode data (e.g., '1234567890123' for EAN13)
+            barcode_type: Type of barcode (EAN13, EAN8, UPC-A, CODE39, etc.)
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self._is_connected or not self.printer:
+            logger.error("Printer not connected")
+            return False
+        
+        # Validate barcode data before printing
+        valid, error_msg = self._validate_barcode(barcode_type, data)
+        if not valid:
+            logger.error(f"Invalid barcode data: {error_msg}")
+            return False
+        
+        try:
+            # Center the barcode; if this fails, continue printing but log the issue.
+            try:
+                self.printer.set(align='center')
+            except Exception as e:
+                logger.debug("Failed to set printer alignment to center before barcode: %s", e)
+            
+            # Print the barcode
+            self.printer.barcode(data, barcode_type)
+            
+            # Reset alignment; if this fails, continue but log the issue.
+            try:
+                self.printer.set(align='left')
+            except Exception as e:
+                logger.debug("Failed to reset printer alignment to left after barcode: %s", e)
+            
+            logger.info(f"Barcode printed: {barcode_type} - {data}")
+            return True
+        except Exception as e:
+            logger.error(f"Error printing barcode: {e}")
+            return False
+    
+    def _validate_barcode(self, barcode_type: str, data: str) -> tuple:
+        """
+        Validate barcode data for a given barcode type.
+        
+        Args:
+            barcode_type: Type of barcode (EAN13, EAN8, etc.)
+            data: Barcode data to validate
+        
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        barcode_type = barcode_type.upper()
+        
+        # EAN13 requires exactly 13 digits
+        if barcode_type == 'EAN13':
+            if len(data) != 13 or not data.isdigit():
+                return False, "EAN13 requires exactly 13 digits"
+        
+        # EAN8 requires exactly 8 digits
+        elif barcode_type == 'EAN8':
+            if len(data) != 8 or not data.isdigit():
+                return False, "EAN8 requires exactly 8 digits"
+        
+        # UPC-A requires exactly 12 digits
+        elif barcode_type in ['UPC-A', 'UPCA', 'UPC_A']:
+            if len(data) != 12 or not data.isdigit():
+                return False, "UPC-A requires exactly 12 digits"
+        
+        # CODE39 allows alphanumeric but has length limits
+        elif barcode_type in ['CODE39', 'CODE-39']:
+            if len(data) > 43:
+                return False, "CODE39 data too long (max 43 characters)"
+            # CODE39 supports: 0-9, A-Z, and special chars (-, ., $, /, +, %, space)
+            import re
+            if not re.match(r'^[0-9A-Z. $/+%-]+$', data):
+                return False, "CODE39 supports only: 0-9, A-Z, -, ., $, /, +, %, space"
+        
+        # CODE128 has more flexibility
+        elif barcode_type in ['CODE128', 'CODE-128']:
+            if len(data) > 80:
+                return False, "CODE128 data too long (max 80 characters)"
+        
+        # For other types, just check length isn't excessive
+        else:
+            if len(data) > 100:
+                return False, "Barcode data too long"
+        
+        return True, None
+        
+    def print_text(self, text: str) -> bool:
+        """
+        Print plain text.
+        
+        Args:
+            text: Text to print
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self._is_connected or not self.printer:
+            logger.error("Printer not connected")
             return False
         
         try:
@@ -248,8 +359,9 @@ class EpsonTM70Printer:
                                         size = int(float(size_val[:-2]))
                                     else:
                                         size = int(float(size_val))
-                                except Exception:
-                                    pass
+                                except (ValueError, TypeError) as exc:
+                                    # Ignore invalid or non-numeric font-size values; fall back to default scale.
+                                    logger.debug("Ignoring invalid font-size value in style '%s': %s", part, exc)
                         if size:
                             self.flush()
                             # Map size to scale multiplier
@@ -290,18 +402,29 @@ class EpsonTM70Printer:
                     path = seg[1]
                     try:
                         self.printer.set(align='center')
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        # Ignore alignment errors; some printers don't support alignment commands
+                        logger.debug(f"Failed to center-align before image: {e}")
                     try:
                         self.printer.image(path)
                     except Exception as e:
                         logger.error(f"Image print failed: {e}")
+                    # Reset alignment after image
+                    try:
+                        self.printer.set(align='left')
+                    except Exception as e:
+                        # Ignore alignment errors; some printers don't support alignment commands
+                        logger.debug(f"Failed to reset alignment to left after image: {e}")
                     continue
                 text = seg
+                # Skip empty text segments
+                if not text or not text.strip():
+                    continue
                 try:
                     # Try explicit bold/italic flags
                     self.printer.set(font='a', width=scale, height=scale, bold=bool(bold), italic=bool(italic))
                 except Exception:
+                    # Fall back to text_type parameter if bold/italic flags not supported
                     try:
                         # Some backends support text_type string
                         text_type = ''
@@ -313,6 +436,7 @@ class EpsonTM70Printer:
                             text_type = None
                         self.printer.set(font='a', width=scale, height=scale, text_type=text_type)
                     except Exception:
+                        # Fall back to basic formatting without bold/italic
                         self.printer.set(font='a', width=scale, height=scale)
                 self.printer.text(text)
 
