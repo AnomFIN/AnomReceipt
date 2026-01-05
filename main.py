@@ -8,23 +8,30 @@ import sys
 import traceback
 from pathlib import Path
 
-try:
-    from PyQt5.QtWidgets import QApplication
-    from PyQt5.QtCore import Qt
-except ImportError as e:
-    print("ERROR: PyQt5 is not installed.")
-    print("Please run: pip install -r requirements.txt")
-    print(f"Details: {e}")
-    sys.exit(1)
-
-from anomreceipt.gui.main_window import MainWindow
-
 
 def main():
     """
     Main application entry point.
     Creates and launches the receipt printer GUI.
     """
+    # Check for PyQt5 dependency
+    try:
+        from PyQt5.QtWidgets import QApplication
+        from PyQt5.QtCore import Qt
+    except ImportError as e:
+        print("ERROR: PyQt5 is not installed.")
+        print("Please run: pip install -r requirements.txt")
+        print(f"Details: {e}")
+        return 1
+    
+    # Import MainWindow after dependency check
+    try:
+        from anomreceipt.gui.main_window import MainWindow
+    except ImportError as e:
+        print(f"ERROR: Failed to import MainWindow: {e}")
+        traceback.print_exc()
+        return 1
+    
     app = None
     
     try:
