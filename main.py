@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 AnomReceipt - Professional Receipt Printing Application
-Main entry point with comprehensive error handling
+Main entry point for the receipt printer GUI
 """
 
 import sys
@@ -23,7 +23,7 @@ from anomreceipt.gui.main_window import MainWindow
 def main():
     """
     Main application entry point.
-    Fully defensive with comprehensive error handling.
+    Creates and launches the receipt printer GUI.
     """
     app = None
     
